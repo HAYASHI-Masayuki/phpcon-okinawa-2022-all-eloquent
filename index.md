@@ -9,11 +9,14 @@ HAYASHI Masayuki
 
 <!--
 
-TODO: 最初のあいさつどうする？
+こんにちは。林と申します。
+さて、「30分で理解するEloquentの巨大な全貌」というタイトルで、
+今日はお話させていただきます。
+よろしくお願いします。
 
 -->
 
-<style>
+<style scoped>
 h1, p {
   text-align: center;
 }
@@ -42,11 +45,13 @@ Eloquent, 短いコードで、データベースを簡単に扱えて便利で�
 
 「気軽に使えるけど、本当に理解して使うのは難しい」
 少なくとも私は、しっかり理解して使えているとは言えない状況でした。
-ドキュメントに書いてある通りにざっと使う分には、まあ困ることもあまりありません。
+ドキュメントに書いてある通りにざっと使う分には、
+まあ困ることもあまりありません。
 が、そこからちょっと外れたとき。
 機能によってはコードちょっと追うだけでわかることもありますが、
 コードを理解するのがそもそも難しい場合もありました。
-気軽に使えるようにするために、Eloquentの中ではいろいろと複雑なことをしているんです。
+気軽に使えるようにするために、
+Eloquentの中ではいろいろと複雑なことをしているんです。
 
 -->
 
@@ -75,21 +80,10 @@ class User extends Authenticatable
 <!--
 
 実際に私がどういうところで引っかかったか、いくつか事例を紹介します。
-これはバージョン<VERSION>での、デフォルトのUserモデルです。
-細かいところ端折ってますが。
-さて、$fillableというプロパティがあります。
-ご存知の通り、ここで指定されているプロパティ以外には一括割り当てができない、
+これはデフォルトのUserモデルです。細かいところ端折ってますが。
+さて、$fillableというプロパティがあります。ご存知の通り、
+ここで指定されているプロパティ以外には一括代入ができない、
 というものです。
-TODO: この辺からスライド分けたり？
-では具体的にこれは、どこまで有効なのでしょうか？
-テスト環境のアカウントのパスワード忘れちゃって、tinkerからupdateでパスワードを変
-更しようとしてエラーになった、なんてことは割とみなさんご経験あるんじゃないでしょ
-うか。
-パスワードは、$fillableに設定されていませんから。
-ではcreateでも同様にエラーになるのか。プロパティへの代入で設定してsaveするパター
-ンでは？
-そもそもEloquentでINSERTする方法はそれだけでしょうか？　すべての方法を知っていま
-すか？
 
 -->
 
@@ -98,18 +92,32 @@ TODO: この辺からスライド分けたり？
 ```php
 <?php
 
-# TODO: datesとかがいい？
+// createの場合は？
+User::create([
+    'name'              => 'tarou',
+    'email'             => 'tarou@example.com',
+    'password'          => bcrypt('...'),
+    'email_verified_at' => now()
+]);
+
+// setterの場合は？
+$user = new User();
+$user->name              = 'tarou';
+$user->email             = 'tarou@example.com';
+$user->password          = bcrypt('...');
+$user->email_verified_at = now();
+$user->save();
 ```
 
 <!--
 
-TODO
-アクセサはまあわかる、プロパティにアクセスしたときに多分処理してる。
-では、キャストはどうなのか？　アクセサと同様？　違うタイミング？
-ミューテタは？
-というかあれだ、setしたデータはどの時点でキャスト、ミューテート、されてるかみた
-いな。
-……いや、即されてるよな。うーん。
+具体的にこれは、どこまで有効なのでしょうか？
+公式ドキュメントには、一括代入の脆弱性から保護すると書いてあります。
+実際にはどのように保護されているのでしょうか。
+createの例は該当しそうです。
+プロパティに代入しているのであれば、きっと大丈夫でしょう。
+
+しかしEloquentでINSERTする方法はそれだけでしょうか？
 
 -->
 
@@ -118,16 +126,38 @@ TODO
 ```php
 <?php
 
-$user->posts()->updateOrCreate
+$user = User::firstOrCreate([
+    'email'             => 'tarou@example.com',
+    'email_verified_at' => null,
+], [
+    'name'              => 'tarou',
+    'password'          => bcrypt('...'),
+    'email_verified_at' => now(),
+]);
 ```
 
 <!--
 
-TODO
-リレーションにクエリとしてアクセスした場合って中ではなにが起こってるの？
-リレーション経由でupdateOrCreateしたときに、
-？？？
-あー、リレーション経由のクエリで、行けるやつと行けないやつあるから、それで。
+さて、firstOrCreateの第1引数で使う場合は？　第2引数で使う場合は？
+email_verified_atをこういう風に使うことはないと思いますが、
+このようなパターン自体はありうるのではないでしょうか。
+
+-->
+
+---
+
+```php
+<?php
+
+$user->posts()->updateOrCreate(['user_id' => $user->id], $attributes);
+```
+
+<!--
+
+私は昔、このようなコードを書いてしまったことがあります。
+このコードのどこがおかしいか、すぐにわかりますか？
+詳しい人であれば、私がなぜ間違ったのか、
+その理由さえ一目見ただけでわかるかもしれません。
 
 -->
 
@@ -185,16 +215,11 @@ User::insert([
 ご覧の通り、created_at, updated_atが保存されていません。
 なぜでしょう？
 
--->
-
----
-
-<!--
-
-こういう感じで引っかかったとき、大抵の場合は該当のメソッドと、関連するいくつかの
-メソッドを調べるだけでも答えを得ることはできます。でもそうでない場合もあります。
-そういうときでも、しっかりEloquentの全貌を理解していれば、よりスムーズに答えを得
-られるのではないかと思います。
+こういう感じで引っかかったとき、大抵の場合は該当のメソッドと、
+関連するいくつかのメソッドを調べるだけでも答えを得ることはできます。
+でもそうでない場合もあります。
+そういうときでも、しっかりEloquentの全貌を理解していれば、
+よりスムーズに答えを得られるのではないかと思います。
 
 -->
 
@@ -208,7 +233,8 @@ User::insert([
 
 <!--
 
-(スライド読む)
+(スライド読む・切り替え)
+という感じでやっていきたいと思います。
 
 -->
 
@@ -216,15 +242,17 @@ User::insert([
 
 # そもそもEloquentって本当に「巨大」なの？
 
-* コードの規模の計測は難しい
-* とはいえ、大きいか小さいかくらいは、ある程度の共通認識ができそう
+- コードの規模の計測は難しい
+- とはいえ、大きいか小さいかくらいは、ある程度の共通認識ができそう
 
 <!--
 
+(スライド読む)
 さて、タイトルから始まってずっと、Eloquentは巨大だと話してきました。
 ですが実際どうでしょうか？
 よく言われる通り、コードの規模の計測は難しいです。
-とはいえ規模が大きいか小さいか、くらいであれば、ある程度共通認識を作ることもできそうです。
+とはいえ規模が大きいか小さいか、くらいであれば、
+ある程度共通認識を作ることもできそうです。
 
 -->
 
@@ -232,15 +260,39 @@ User::insert([
 
 # Eloquentの「範囲」
 
+* \Illuminate\Database\Eloquent\Modelを継承したクラス→Eloquentのモデル
+
 <!--
 
 規模について考える前にもう一つだけ。
-このセッションで話す、「Eloquent」の範囲について、前提となる認識を作りたいと思います。
-といっても簡単です。このセッションでは、\Illuminate\Database\Eloquent\Modelを継
-承したクラスについて、Eloquentのモデル、として扱い、それをEloquentの範囲としま
-す。
-つまり、\Illuminate\Database以下でもEloquent以外の名前空間のものや、artisanの
-make:modelコマンド、あるいはファクトリは範囲外、ということです。
+このセッションで話す、
+「Eloquent」の範囲について、前提となる認識を作りたいと思います。
+(切り替え)
+といっても簡単です。このセッションでは、
+\Illuminate\Database\Eloquent\Modelを継承したクラスについて、
+Eloquentのモデル、として扱い、それをEloquentの範囲とします。
+
+-->
+
+---
+
+# 「範囲外」
+
+* \Illuminate\Database以下でもEloquent以外は「範囲外」
+* make:modelコマンド
+* ファクトリ
+
+<!--
+
+つまり、
+(切り替え)
+\Illuminate\Database以下でもEloquent以外の名前空間のものや、
+(切り替え)
+artisanのmake:modelコマンド、
+(切り替え)
+あるいはファクトリ。
+
+これらは、Eloquentと深い関係にありますが、範囲外とします。
 
 -->
 
@@ -257,13 +309,14 @@ count((new ReflectionClass(new class extends Illuminate\Database\Eloquent\Model 
 <!--
 
 さて、それではまず、Eloquentのモデルのメソッド数を数えてみます。
-コードの規模を考える上で、いちばん手軽なのはコードの行数ですが、特に比較対象がな
-い場合に行数だけから規模を考えるのはなかなか難しい気がするので、もうちょっとマシ
-そうな、メソッド数です。
-tinkerで、リフレクションを使って特にメソッドを追加していないモデルクラスのメソッ
-ド数を数えてみます。
-手もとにLaravelを動かせる環境がある人は、ぜひ実際に試してみてください。
-バージョンによって違ってはくると思いますが。
+コードの規模を考える上で、いちばん手軽なのはコードの行数ですが、
+特に比較対象がない場合に行数だけから規模を考えるのは、
+なかなか難しい気がするので、もうちょっとマシそうな、メソッド数です。
+
+tinkerで、リフレクションを使って、
+特にメソッドを追加していないモデルクラスのメソッド数を数えてみます。
+手もとにLaravelを動かせる環境がある人は、
+ぜひ実際に試してみてください。
 
 -->
 
@@ -274,13 +327,23 @@ tinkerで、リフレクションを使って特にメソッドを追加して�
 <!--
 
 350という数値が出ました。protectedメソッドも含むんですが。
+バージョンによって違ってはくると思いますが、
 とはいえ、まあ十分多いのではないでしょうか。
-仕事で350メソッドもあるクラスを書いたら、多分レビューは通らないと思います。
+仕事で350メソッドもあるクラスを書いたら、
+多分レビューは通らないと思います。
 さて、実際350ってどのくらいでしょう？
 
 -->
 
+<style scoped>
+h1, p {
+  text-align: center;
+}
+</style>
+
 ---
+
+`__call` `__callStatic` `__construct` `__get` `__isset` `__set` `__sleep` `__toString` `__unset` `__wakeup` `addCastAttributesToArray` `addDateAttributesToArray` `addGlobalScope` `addMutatedAttributesToArray` `addObservableEvents` `all` `append` `asDate` `asDateTime` `asDecimal` `asJson` `asTimestamp` `attributesToArray` `belongsTo` `belongsToMany` `boot` `bootIfNotBooted` `bootTraits` `booted` `booting` `broadcastChannel` `broadcastChannelRoute` `cacheMutatedAttributes` `callNamedScope` `castAttribute` `castAttributeAsEncryptedString` `castAttributeAsJson` `clearBootedModels` `created` `creating` `decrement` `decrementQuietly` `delete` `deleteOrFail` `deleteQuietly` `deleted` `deleting` `destroy` `deviateClassCastableAttribute` `encryptUsing` `escapeWhenCastingToString` `fill` `fillJsonAttribute` `fillable` `fillableFromArray` `filterModelEventResults` `finishSave` `fireCustomModelEvent` `fireModelEvent` `flushEventListeners` `forceDelete` `forceFill` `forwardCallTo` `forwardDecoratedCallTo` `fresh` `freshTimestamp`
 
 <!--
 
@@ -290,20 +353,62 @@ tinkerで、リフレクションを使って特にメソッドを追加して�
 
 ---
 
+`freshTimestampString` `fromDateTime` `fromEncryptedString` `fromFloat` `fromJson` `getActualClassNameForMorph` `getArrayAttributeByKey` `getArrayAttributeWithValue` `getArrayableAppends` `getArrayableAttributes` `getArrayableItems` `getArrayableRelations` `getAttribute` `getAttributeFromArray` `getAttributeMarkedMutatorMethods` `getAttributeValue` `getAttributes` `getAttributesForInsert` `getCastType` `getCasts` `getChanges` `getClassCastableAttributeValue` `getConnection` `getConnectionName` `getConnectionResolver` `getCreatedAtColumn` `getDateFormat` `getDates` `getDirty` `getEnumCastableAttributeValue` `getEventDispatcher` `getFillable` `getForeignKey` `getGlobalScope` `getGlobalScopes` `getGuarded` `getHidden` `getIncrementing` `getKey` `getKeyForSaveQuery` `getKeyForSelectQuery` `getKeyName` `getKeyType` `getMorphClass` `getMorphs` `getMutatedAttributes` `getMutatorMethods` `getObservableEvents` `getOriginal` `getOriginalWithoutRewindingModel` `getPerPage` `getQualifiedCreatedAtColumn` `getQualifiedKeyName`
+
 <!--
 
-以上です。見るだけでつらい感じになりますね。
-これでEloquentが巨大であるということには、ひとまず同意いただけるのではないでしょうか。
-なおすでに気付いている人もいると思うんですが、実際にはEloquentには、これ以上のメソッドがあります。
+(メソッド一覧)
 
 -->
 
 ---
 
+`getQualifiedUpdatedAtColumn` `getQueueableConnection` `getQueueableId` `getQueueableRelations` `getRawOriginal` `getRelation` `getRelationValue` `getRelations` `getRelationshipFromMethod` `getRouteKey` `getRouteKeyName` `getTable` `getTouchedRelations` `getUpdatedAtColumn` `getVisible` `guard` `guessBelongsToManyRelation` `guessBelongsToRelation` `handleLazyLoadingViolation` `handleLazyLoadingViolationUsing` `hasAppended` `hasAttributeGetMutator` `hasAttributeMutator` `hasAttributeSetMutator` `hasCast` `hasChanges` `hasGetMutator` `hasGlobalScope` `hasMany` `hasManyThrough` `hasNamedScope` `hasOne` `hasOneThrough` `hasSetMutator` `increment` `incrementOrDecrement` `incrementQuietly` `initializeTraits` `insertAndSetId` `is` `isClassCastable` `isClassDeviable` `isClassSerializable` `isClean` `isCustomDateTimeCast` `isDateAttribute` `isDateCastable` `isDateCastableWithCustomFormat` `isDecimalCast` `isDirty` `isEncryptedCastable` `isEnumCastable` `isFillable` `isGuardableColumn` `isGuarded` `isIgnoringTouch` `isImmutableCustomDateTimeCast`
+
 <!--
 
-しかし、350あるいはそれ以上のメソッドを、端から端までぜんぶ読むのはちょっと大変そうです。
-大変以前に、今日のセッションの時間は30分しかないので、まあ不可能ですね。
+(メソッド一覧)
+
+-->
+
+---
+
+`isJsonCastable` `isNot` `isRelation` `isStandardDateFormat` `isUnguarded` `joiningTable` `joiningTableSegment` `jsonSerialize` `load` `loadAggregate` `loadAvg` `loadCount` `loadExists` `loadMax` `loadMin` `loadMissing` `loadMorph` `loadMorphAggregate` `loadMorphAvg` `loadMorphCount` `loadMorphMax` `loadMorphMin` `loadMorphSum` `loadSum` `makeHidden` `makeHiddenIf` `makeVisible` `makeVisibleIf` `mergeAttributesFromAttributeCasts` `mergeAttributesFromCachedCasts` `mergeAttributesFromClassCasts` `mergeCasts` `mergeFillable` `mergeGuarded` `morphEagerTo` `morphInstanceTo` `morphMany` `morphOne` `morphTo` `morphToMany` `morphedByMany` `mutateAttribute` `mutateAttributeForArray` `mutateAttributeMarkedAttribute` `newBaseQueryBuilder` `newBelongsTo` `newBelongsToMany` `newCollection` `newEloquentBuilder` `newFromBuilder` `newHasMany` `newHasManyThrough` `newHasOne` `newHasOneThrough` `newInstance` `newModelQuery` `newMorphMany` `newMorphOne` `newMorphTo` `newMorphToMany` `newPivot` `newQuery` `newQueryForRestoration`
+
+<!--
+
+(メソッド一覧)
+
+-->
+
+---
+
+`newQueryWithoutRelationships` `newQueryWithoutScope` `newQueryWithoutScopes` `newRelatedInstance` `newRelatedThroughInstance` `normalizeCastClassResponse` `observe` `offsetExists` `offsetGet` `offsetSet` `offsetUnset` `on` `onWriteConnection` `only` `originalIsEquivalent` `parseCasterClass` `performDeleteOnModel` `performInsert` `performUpdate` `preventLazyLoading` `preventsLazyLoading` `push` `qualifyColumn` `qualifyColumns` `query` `refresh` `registerGlobalScopes` `registerModelEvent` `registerObserver` `reguard` `relationLoaded` `relationsToArray` `removeObservableEvents` `replicate` `replicateQuietly` `replicating` `resolveCasterClass` `resolveChildRouteBinding` `resolveChildRouteBindingQuery` `resolveConnection` `resolveRelationUsing` `resolveRouteBinding` `resolveRouteBindingQuery` `resolveSoftDeletableChildRouteBinding` `resolveSoftDeletableRouteBinding` `retrieved` `save` `saveOrFail` `saveQuietly` `saved` `saving` `serializeClassCastableAttribute` `serializeDate` `setAppends` `setAttribute` `setAttributeMarkedMutatedAttributeValue`
+
+<!--
+
+(メソッド一覧)
+
+-->
+
+---
+
+`setClassCastableAttribute` `setConnection` `setConnectionResolver` `setCreatedAt` `setDateFormat` `setEnumCastableAttribute` `setEventDispatcher` `setHidden` `setIncrementing` `setKeyName` `setKeyType` `setKeysForSaveQuery` `setKeysForSelectQuery` `setMutatedAttributeValue` `setObservableEvents` `setPerPage` `setRawAttributes` `setRelation` `setRelations` `setTable` `setTouchedRelations` `setUpdatedAt` `setVisible` `syncChanges` `syncOriginal` `syncOriginalAttribute` `syncOriginalAttributes` `throwBadMethodCallException` `toArray` `toJson` `totallyGuarded` `touch` `touchOwners` `touches` `transformModelValue` `unguard` `unguarded` `unsetConnectionResolver` `unsetEventDispatcher` `unsetRelation` `unsetRelations` `update` `updateOrFail` `updateQuietly` `updateTimestamps` `updated` `updating` `usesTimestamps` `wasChanged` `with` `withoutBroadcasting` `withoutEvents` `withoutRelations` `withoutTouching` `withoutTouchingOn`
+
+<!--
+
+(メソッド一覧)
+
+以上です。見るだけでつらい感じになりますね。
+これでEloquentが巨大であるということには、
+ひとまず同意いただけるのではないでしょうか。
+なおすでに気付いている人もいると思うんですが、
+実際にはEloquentには、これ以上のメソッドがあります。
+
+しかし、350あるいはそれ以上のメソッドを、
+端から端までぜんぶ読むのはちょっと大変そうです。
+大変以前に、今日のセッションの時間は30分しかないので、
+まあ不可能ですね。
 ではどうやって、30分でEloquentの全貌を理解しましょう？
 
 -->
@@ -312,13 +417,15 @@ tinkerで、リフレクションを使って特にメソッドを追加して�
 
 # ではどうするか？
 
-* 分割して理解する
-* 抽象化して把握する
+- 分割して理解する
+- 抽象化して把握する
 
 <!--
 
-我々はプログラマなので、大きなもの、複雑なものにどう対処すればいいかは知っています。
-分割して少しずつ理解したり、抽象化して大きなものも把握しやすくしたり、
+我々はプログラマなので、
+大きなもの、複雑なものにどう対処すればいいかは知っています。
+分割して少しずつ理解したり、
+抽象化して大きなものも把握しやすくしたり、
 そういう手法をあれこれ使って、なんとかしてきたいと思います。
 
 -->
