@@ -7,6 +7,12 @@ author: HAYASHI Masayuki
 
 HAYASHI Masayuki
 
+<style scoped>
+h1, p {
+  text-align: center;
+}
+</style>
+
 <!--
 
 こんにちは。林と申します。
@@ -16,17 +22,13 @@ HAYASHI Masayuki
 
 -->
 
-<style scoped>
-h1, p {
-  text-align: center;
-}
-</style>
-
 ---
 
 # Eloquentしっかり理解して使えてますか？
 
 <!--
+
+(1章)
 
 みなさん、Eloquent, しっかり理解して使えてますか？
 Eloquent, 短いコードで、データベースを簡単に扱えて便利ですよね。
@@ -324,6 +326,12 @@ tinkerで、リフレクションを使って、
 
 # 350
 
+<style scoped>
+h1, p {
+  text-align: center;
+}
+</style>
+
 <!--
 
 350という数値が出ました。protectedメソッドも含むんですが。
@@ -335,12 +343,6 @@ tinkerで、リフレクションを使って、
 
 -->
 
-<style scoped>
-h1, p {
-  text-align: center;
-}
-</style>
-
 ---
 
 `__call` `__callStatic` `__construct` `__get` `__isset` `__set` `__sleep` `__toString` `__unset` `__wakeup` `addCastAttributesToArray` `addDateAttributesToArray` `addGlobalScope` `addMutatedAttributesToArray` `addObservableEvents` `all` `append` `asDate` `asDateTime` `asDecimal` `asJson` `asTimestamp` `attributesToArray` `belongsTo` `belongsToMany` `boot` `bootIfNotBooted` `bootTraits` `booted` `booting` `broadcastChannel` `broadcastChannelRoute` `cacheMutatedAttributes` `callNamedScope` `castAttribute` `castAttributeAsEncryptedString` `castAttributeAsJson` `clearBootedModels` `created` `creating` `decrement` `decrementQuietly` `delete` `deleteOrFail` `deleteQuietly` `deleted` `deleting` `destroy` `deviateClassCastableAttribute` `encryptUsing` `escapeWhenCastingToString` `fill` `fillJsonAttribute` `fillable` `fillableFromArray` `filterModelEventResults` `finishSave` `fireCustomModelEvent` `fireModelEvent` `flushEventListeners` `forceDelete` `forceFill` `forwardCallTo` `forwardDecoratedCallTo` `fresh` `freshTimestamp`
@@ -348,6 +350,11 @@ h1, p {
 <!--
 
 (メソッド一覧)
+
+(2回目)
+こちらアルファベット順に並んでいるのですが……。
+fill, fillable, そしてfire..., でも次はflushですね、firstはありません。
+(+1ページ)
 
 -->
 
@@ -358,6 +365,10 @@ h1, p {
 <!--
 
 (メソッド一覧)
+
+(2回目)
+fの後、gの最初が、getActual...です、単体のgetはありません。
+(+4ページ)
 
 -->
 
@@ -411,6 +422,10 @@ h1, p {
 まあ不可能ですね。
 ではどうやって、30分でEloquentの全貌を理解しましょう？
 
+(2回目)
+wasChangedの後はwithです、whereありませんね。
+(+4ページ)
+
 -->
 
 ---
@@ -432,9 +447,11 @@ h1, p {
 
 ---
 
-# 
+# TODO
 
 <!--
+
+(2章)
 
 それでは早速調べていきたいと思います。
 しかし一体どう進めるのがよいでしょう？
@@ -446,7 +463,17 @@ h1, p {
 
 ---
 
-# 
+# Eloquentはどのように使うか
+
+```php
+<?php
+
+$users = User::where('email', 'like', '%@example.com')->get();
+$user  = User::where('id', $id)->first();
+
+echo $user->name;
+$user->update(['password' => bcrypt('...')]);
+```
 
 <!--
 
@@ -458,38 +485,55 @@ Eloquentの使い方としては大きく分けて、
 updateやdeleteで行を操作したり、ですね。
 今回は前者から見てみます。
 
--->
-
----
-
-# 
-
-<!--
-
 さて、先程Eloquent\Modelを継承したクラスに実装されている
 メソッドを見てみました。350もありました。
 が、実はあの中には、whereもgetも、firstもありません。
 見直してみましょう。
 
-こちらアルファベット順に並んでいるのですが……。
-fill, fillable, そしてfire, でも次はflushですね、firstはありません。
-fの後、gの最初が、getActual...です、単体のgetはありません。
-wasChangedの後はwithです、whereありませんね。
+(メソッド一覧に戻る: -8ページ)
 
 -->
 
 ---
 
-# 
+# Eloquent\Modelにはwhere, get, firstはない
 
 <!--
 
-ご存知の方はご存知だと思うのですが、この辺のメソッドはEloquent\Model
-には直接実装されていません。マジックメソッド__callStatic経由で呼ばれます。
-__callStaticで自身のインスタンスを生成して、そこからさらに__callが、
-__callから、Eloquent\Builderというクラスのインスタンスが生成されて、
-そのメソッドが呼び出されています。
-いわゆる委譲ですね。
+Eloquent\Modelにはwhere, get, firstはありませんでした。
+
+ご存知の方はご存知だと思うのですが、
+この辺のメソッドはEloquent\Modelには直接実装されていません。
+ではどうなっているのか？
+
+-->
+
+---
+
+User::where
+→ User::__callStatic
+→ User->__call
+→ Eloquent\Builder::where
+
+<!--
+
+あるクラスの、実装されていない静的メソッドを呼び出そうとしたとき、
+マジックメソッド__callStaticが実装されていれば、
+そちらが呼び出されます。
+
+今回Eloquent\Modelにwhereメソッドはないので、
+__callStaticが呼び出されるわけです。
+
+そこから紆余曲折あって、最終的にはEloquent\Builderというクラスの
+インスタンスが生成され、そのメソッドが呼び出されます。
+
+Eloquent\Modelは、このような形で一部の操作をEloquent\Builderに
+委譲しています。
+
+Eloquent\Builderのメソッドを見てみましょう。
+今度はたったの162メソッドです。
+
+TODO: ここ、結論から！
 
 -->
 
@@ -497,18 +541,31 @@ __callから、Eloquent\Builderというクラスのインスタンスが生成�
 
 `__call` `__callStatic` `__clone` `__construct` `__get` `addHasWhere` `addNestedWiths` `addNewWheresWithinGroup` `addTimestampsToUpsertValues` `addUpdatedAtColumn` `addUpdatedAtToUpsertColumns` `addWhereCountQuery` `applyScopes` `baseSole` `callNamedScope` `callScope` `canUseExistsForExistenceCheck` `chunk` `chunkById` `chunkMap` `clone` `combineConstraints` `create` `createNestedWhere` `createSelectWithConstraint` `cursor` `cursorPaginate` `cursorPaginator` `decrement` `defaultKeyName` `delete` `doesntHave` `doesntHaveMorph` `each` `eachById` `eagerLoadRelation` `eagerLoadRelations` `enforceOrderBy` `ensureOrderForCursorPagination` `find` `findMany` `findOr` `findOrFail` `findOrNew` `first` `firstOr` `firstOrCreate` `firstOrFail` `firstOrNew` `firstWhere` `forceCreate` `forceDelete` `forwardCallTo` `forwardDecoratedCallTo` `fromQuery` `get` `getBelongsToRelation` `getEagerLoads` `getGlobalMacro` `getMacro` `getModel` `getModels` `getOriginalColumnNameForCursorPagination` `getQuery` `getRelation` `getRelationWithoutConstraints` `groupWhereSliceForScope` `has` `hasGlobalMacro` `hasMacro` `hasMorph` `hasNamedScope` `hasNested` `hydrate` `increment` `isNestedUnder` `latest` `lazy` `lazyById` `lazyByIdDesc` `make` `mergeConstraintsFrom`
 
+<style scoped>
+code:nth-child(45),
+code:nth-child(56) {
+  color: #f00;
+  text-decoration: underline;
+}
+</style>
+
 <!--
 
-TODO: firstやget, 色つけたい。
-
-メソッドをまた見てみましょう。今度はたったの162メソッドです。
-そしてfirstがあります、getもあります。
+firstがあります。
+getもありますね。
 
 -->
 
 ---
 
 `newModelInstance` `oldest` `onDelete` `orDoesntHave` `orDoesntHaveMorph` `orHas` `orHasMorph` `orWhere` `orWhereBelongsTo` `orWhereDoesntHave` `orWhereDoesntHaveMorph` `orWhereHas` `orWhereHasMorph` `orWhereMorphRelation` `orWhereMorphedTo` `orWhereNot` `orWhereNotMorphedTo` `orWhereRelation` `orderedLazyById` `paginate` `paginateUsingCursor` `paginator` `parseNameAndAttributeSelectionConstraint` `parseWithRelations` `pluck` `prepareNestedWithRelationships` `qualifyColumn` `qualifyColumns` `registerMixin` `relationsNestedUnder` `removedScopes` `requalifyWhereTables` `scopes` `setEagerLoads` `setModel` `setQuery` `simplePaginate` `simplePaginator` `sole` `soleValue` `tap` `throwBadMethodCallException` `toBase` `unless` `update` `updateOrCreate` `upsert` `value` `valueOrFail` `when` `where` `whereBelongsTo` `whereDoesntHave` `whereDoesntHaveMorph` `whereHas` `whereHasMorph` `whereKey` `whereKeyNot` `whereMorphRelation` `whereMorphedTo` `whereNot` `whereNotMorphedTo` `whereRelation` `with` `withAggregate` `withAvg` `withCasts` `withCount` `withExists` `withGlobalScope` `withMax` `withMin` `withOnly` `withSum` `withWhereHas` `without` `withoutEagerLoad` `withoutEagerLoads` `withoutGlobalScope` `withoutGlobalScopes`
+
+<style scoped>
+code:nth-child(51) {
+  color: #f00;
+  text-decoration: underline;
+}
+</style>
 
 <!--
 
@@ -518,20 +575,28 @@ whereもありました。
 
 ---
 
-# 
+- Eloquent\Model(を継承したクラス) ... 350メソッド
+- Eloquent\Builder ... 162メソッド
+- 計 ... 512メソッド
 
 <!--
 
-合計するとメソッド数が500を超えちゃってる気もしますが、これで一段落……。
-ではないんです。実は、まだ足りないものがあります。
+Eloquent\Modelと合わせて、メソッドが500を超えています。
+とはいえこれで一通り、よく使うメソッドは揃ったかな、
+と思いきや、実はまだ足りないものがあります。
+
 お気付きになられたでしょうか？
 selectも、joinも、groupByもorderByも、今の一覧にはありませんでした。
+
+どうなっているのでしょう？　まあ、予想つきますよね。
 
 -->
 
 ---
 
-# 
+Eloquent\Builder->select
+→ Eloquent\Builder->__call
+→ Illuminate\Database\Query\Builder::select
 
 <!--
 
@@ -543,16 +608,29 @@ Eloquent\ModelからEloquent\Builderへの委譲同様、
 Query\Builderのものが呼び出されるようになっています。
 そして今度こそ、私たちが普段使っている機能が一通り揃っています。
 
+さすがにしつこいのでメソッドの一覧はもう出しませんが、
+Query\Builderには200を超えるメソッドがあり、
+select, join, groupBy, orderByほか、普段Eloquentで
+SQLを操作する際に使うメソッドは、ほとんどここに実装されています。
+
 -->
 
 ---
 
-# 
+# User::whereが返すのはEloquent\Builder
+
+```php
+<?php
+
+echo get_class(User::where('id', $id));
+// → 'Illuminate\Database\Eloquent\Builder'
+```
 
 <!--
 
 IDE Helperなどを入れていい感じに補完が効くようにしている方は
-よくご存知かと思いますが、Eloquentのクラスから静的にメソッドを実行して、
+よくご存知かと思いますが、
+Eloquentのクラスから静的にメソッドを実行して、
 戻ってくるのはEloquent\Builderです。
 そこからメソッドをチェーンしていくときに使えるのは、
 Eloquent\BuilderかQuery\Builderのメソッドというわけです。
@@ -561,95 +639,18 @@ Eloquent\BuilderかQuery\Builderのメソッドというわけです。
 
 ---
 
-```php
-<?php
+# Query\Builderを知る
 
-namespace Illuminate\Database\Eloquent;
-
-class Builder
-{
-    public function __call($method, $parameters)
-    {
-        // ...
-
-        $this->forwardCallTo($this->query, $method, $parameters);
-
-        return $this;
-    }
-}
-```
+- 200を超えるメソッドの半数以上が、自身を返すメソッド
+  - 大半の機能がメソッドチェーンでSQLを組み立てるもの
+- 残りの多くは、取得した行、そのコレクションを返す
 
 <!--
 
-ちなみにEloquent\Builderをチェーンしつつ
-Query\Builderのメソッドを使えるの、
-最初どういう実装になっているのかわからなかったんですが、
-こんな感じでした。
+Query\Builderをちょっと見てみます。
+Query\Builderには200を超えるメソッドがありますが、
+そのうち半数以上が自身を返すメソッドです。
 
-単純に、委譲した結果をそのまま戻すのではなく、
-戻すのはEloquent\Builder自身になっているんです。
-
-面白い実装ですが、こうなると気になってくるのが、
-自身を戻す、チェーンするメソッド以外の場合どうなるのか、です。
-
--->
-
----
-
-```php
-<?php
-
-namespace Illuminate\Database\Eloquent;
-
-class Builder
-{
-    /**
-     * The methods that should be returned from query builder.
-     *
-     * @var string[]
-     */
-    protected $passthru = [
-        'aggregate', 'average', 'avg', 'count', 'dd', 'doesntExist', 'dump', 'exists', 'explain', 'getBindings', 'getConnection',
-        'getGrammar', 'insert', 'insertGetId', 'insertOrIgnore', 'insertUsing', 'max', 'min', 'raw', 'sum', 'toSql',
-    ];
-
-    public function __call($method, $parameters)
-    {
-        // ...
-
-        if (in_array($method, $this->passthru)) {
-            return $this->toBase()->{$method}(...$parameters);
-        }
-
-        $this->forwardCallTo($this->query, $method, $parameters);
-
-        return $this;
-    }
-}
-```
-
-<!--
-
-ちょっと上のコードに答えがありました。
-一部の、$passthruで指定されたメソッド、これらに委譲する場合、
-Eloquent\Builderを返すのではなく戻り値自体を返すようになっています。
-よく工夫されています。その分、理解するのは大変ですが。
-
--->
-
----
-
-# 
-
-<!--
-
-ちょっと戻って、Query\Builderのメソッドを見てみます。
-今度は229メソッドあります。まあもう一覧しません。
-というのも、今回見てみたいのは戻り値です。
-といっても、Laravelは今のところ戻り値の型は指定していないので、
-PHPDocの@returnで見る感じです。
-
-Query\Builderの各メソッドの戻り値ですが、半数以上が自身を戻すメソッドです。
 残りは結構ばらばらですが、取得した行や、
 そのコレクションを返すものがかなり多い感じです。
 
@@ -661,7 +662,11 @@ SQLクエリをメソッドチェーンで表現する、そのクエリを実�
 
 ---
 
-# 
+# Query\BuilderはEloquentの一部……ではない
+
+- 単純に、名前空間が違う
+  - Eloquentは、Illuminate\Database\Eloquent以下
+  - Query\Builderは、Illuminate\Database\Query\Builder
 
 <!--
 
@@ -675,7 +680,9 @@ SQLクエリをメソッドチェーンで表現する、そのクエリを実�
 
 ---
 
-# 
+# なぜ直接Query\Builderを使わないのか？
+
+* Eloquent\Builderがなにを実装しているかを見ればよさそう
 
 <!--
 
@@ -685,13 +692,7 @@ Eloquent\Modelが、SQLの処理をEloquent\Builder経由でQuery\Builderに
 なぜ、Eloquent\Builder経由なんでしょうか？
 Eloquent\Modelが直接Query\Builderを使わないのはなぜでしょうか？
 
--->
-
----
-
-# 
-
-<!--
+(めくる)
 
 それを知るには、
 Eloquent\Builderがなにを実装しているかを見ればよさそうです。
@@ -703,15 +704,47 @@ Eloquent\Builderのメソッドには、Query\Builderをオーバーライド
 
 ---
 
-# 
+# Eloquent\Builderのメソッド
+
+- Query\Builderをオーバーライドしているもの
+  - `where`
+  - `find` `get`
+  - `latest` `oldest`
+  - `update` `delete`
+  - `increment` `decrement`
 
 <!--
 
-まあいろいろあるんですが、目立つのは、whereやget, find,
+まあいろいろあるんですが、目立つのは、whereやfind, get,
 あとはlatestあたりですかね。
 これらのメソッドが、なぜQuery\Builderのものではなく、独自のものを
 使うようになっているのか、がわかれば、
 Eloquent\Builderの存在意義についてもわかりそうです。
+
+-->
+
+---
+
+# Eloquent\Builderのメソッド
+
+- Query\Builderをオーバーライドしているもの
+  - `where`
+  - `find` `get`
+  - `latest` `oldest`
+  - `update` `delete`
+  - `increment` `decrement`
+
+<style scoped>
+li li:nth-child(2) code:nth-child(1),
+li li:nth-child(3) code {
+  color: #f00;
+  text-decoration: underline;
+}
+</style>
+
+<!--
+
+TODO: もうちょっと整理
 
 findやlatestは、これは主キーやタイムスタンプ、created_at, updated_at
 ですね、この辺が関係してくる機能です。
@@ -730,7 +763,22 @@ Eloquent\Builderのfindは、Eloquent\Modelの$primaryKeyに設定された
 
 ---
 
-# 
+# Eloquent\Builderのメソッド
+
+- Query\Builderをオーバーライドしているもの
+  - `where`
+  - `find` `get`
+  - `latest` `oldest`
+  - `update` `delete`
+  - `increment` `decrement`
+
+<style scoped>
+li li:nth-child(1) code:nth-child(1),
+li li:nth-child(2) code:nth-child(2) {
+  color: #f00;
+  text-decoration: underline;
+}
+</style>
 
 <!--
 
@@ -746,7 +794,18 @@ whereやgetは、またちょっと別の理由で、独自に実装されてい
 
 ---
 
-# 
+# Eloquent\Builderのメソッド(2)
+
+- Eloquent\Builderだけにあるもの
+  - 名前に`key`とか`timestamp`を含むもの
+  - 名前に`scope`を含むもの
+  - 名前に`eagerLoad` `relation` `with`を含むもの
+<!-- 
+- 共通で使用しているBuildQueriesトレイトにあるもの
+  - chunk, each, lazy
+  - first
+  - paginator, simplePaginator
+-->
 
 <!--
 
@@ -766,23 +825,126 @@ TODO: createとか、BuildQueriesとか、その辺の話は？　時間足り�
 
 ---
 
-# 
+# ここまでにわかったこと
+
+* Eloquentの機能のうち、少なくない部分がEloquent\Builder, Query\Builderにある
+* Builder 2つを合わせたメソッド数は、Eloquent\Modelのメソッド数に匹敵
+* →Eloquentの半分は、クエリビルダでできている？
 
 <!--
 
 ここまででわかったことを簡単にまとめます。
+
+(めくる)
+
 Eloquentの機能のうち、少なくない部分がEloquent\Builder,
 Query\Builderによるものでした。
 SQLを組み立てて、実行して、というあたりはほぼそうです。
+
+(めくる)
 
 規模的にも、Eloquent\Modelが350メソッドあったのに対し、
 Builder 2つを合わせると同等以上ありました。
 実は2つのBuilderから同じトレイトを使っていたりして、
 単純計算で数えるのもちょっと違うんですが。
 
+(めくる)
+
 ということで、Eloquentの半分近くはクエリビルダでできている、
 と考えてよいのではないでしょうか。
 そう考えると、Eloquentが意外とシンプルに見えてきます。
+
+-->
+
+---
+
+```php
+<?php
+
+User::where('id', $id)      // これはEloquent\Builder
+    ->select('id', 'email') // これはQuery\Builderにしかないはず？
+    ->get();                // これはEloquent\Builderのはず
+```
+
+<!--
+
+ちなみにEloquent\Builderをチェーンしつつ
+Query\Builderのメソッドを使えるの、
+最初どういう実装になっているのかわからなかったんですが、
+
+-->
+
+---
+
+```php
+<?php
+
+namespace Illuminate\Database\Eloquent;
+
+class Builder
+{
+    public function __call($method, $parameters)
+    {
+        // ...
+
+        // $this->queryはQuery\Builder
+        $this->forwardCallTo($this->query, $method, $parameters);
+
+        // 返すのは、Eloquent\Builder
+        return $this;
+    }
+}
+```
+
+<!--
+
+こんな感じでした。
+
+単純に、委譲した結果をそのまま返すのではなく、
+返すのはEloquent\Builder自身になっているんです。
+
+面白い実装ですが、こうなると気になってくるのが、
+自身を返す、チェーンするメソッド以外の場合どうなるのか、です。
+
+-->
+
+---
+
+```php
+<?php
+
+namespace Illuminate\Database\Eloquent;
+
+class Builder
+{
+    protected $passthru = [
+        'aggregate', 'average', 'avg', 'count', 'dd', 'doesntExist', 'dump', 'exists',
+        'explain', 'getBindings', 'getConnection', 'getGrammar', 'insert', 'insertGetId',
+        'insertOrIgnore', 'insertUsing', 'max', 'min', 'raw', 'sum', 'toSql',
+    ];
+
+    public function __call($method, $parameters)
+    {
+        // ...
+
+        if (in_array($method, $this->passthru)) {
+            // 戻り値自体を返す！
+            return $this->toBase()->{$method}(...$parameters);
+        }
+
+        $this->forwardCallTo($this->query, $method, $parameters);
+
+        return $this;
+    }
+}
+```
+
+<!--
+
+ちょっと上のコードに答えがありました。省略していた部分です。
+一部の、$passthruで指定されたメソッド、これらに委譲する場合、
+Eloquent\Builderを返すのではなく戻り値自体を返すようになっています。
+よく工夫されています。その分、理解するのは大変ですが。
 
 -->
 
