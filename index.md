@@ -430,3 +430,370 @@ h1, p {
 
 -->
 
+---
+
+# 
+
+<!--
+
+それでは早速調べていきたいと思います。
+しかし一体どう進めるのがよいでしょう？
+こういうときにあまり細かいところから見ていっても、
+なかなか全体像は見えてこない気がします。
+ので、大きな個所から攻めたいところです。
+
+-->
+
+---
+
+# 
+
+<!--
+
+どういう使い方をするか、から考えてみます。
+Eloquentの使い方としては大きく分けて、
+2つあるんじゃないかなと思います。
+1つは、whereなどで検索して、getやfirstで行を取得する。
+もう1つは、取得した行を使っていく。各カラムの内容を表示したり、
+updateやdeleteで行を操作したり、ですね。
+今回は前者から見てみます。
+
+-->
+
+---
+
+# 
+
+<!--
+
+さて、先程Eloquent\Modelを継承したクラスに実装されている
+メソッドを見てみました。350もありました。
+が、実はあの中には、whereもgetも、firstもありません。
+見直してみましょう。
+
+こちらアルファベット順に並んでいるのですが……。
+fill, fillable, そしてfire, でも次はflushですね、firstはありません。
+fの後、gの最初が、getActual...です、単体のgetはありません。
+wasChangedの後はwithです、whereありませんね。
+
+-->
+
+---
+
+# 
+
+<!--
+
+ご存知の方はご存知だと思うのですが、この辺のメソッドはEloquent\Model
+には直接実装されていません。マジックメソッド__callStatic経由で呼ばれます。
+__callStaticで自身のインスタンスを生成して、そこからさらに__callが、
+__callから、Eloquent\Builderというクラスのインスタンスが生成されて、
+そのメソッドが呼び出されています。
+いわゆる委譲ですね。
+
+-->
+
+---
+
+`__call` `__callStatic` `__clone` `__construct` `__get` `addHasWhere` `addNestedWiths` `addNewWheresWithinGroup` `addTimestampsToUpsertValues` `addUpdatedAtColumn` `addUpdatedAtToUpsertColumns` `addWhereCountQuery` `applyScopes` `baseSole` `callNamedScope` `callScope` `canUseExistsForExistenceCheck` `chunk` `chunkById` `chunkMap` `clone` `combineConstraints` `create` `createNestedWhere` `createSelectWithConstraint` `cursor` `cursorPaginate` `cursorPaginator` `decrement` `defaultKeyName` `delete` `doesntHave` `doesntHaveMorph` `each` `eachById` `eagerLoadRelation` `eagerLoadRelations` `enforceOrderBy` `ensureOrderForCursorPagination` `find` `findMany` `findOr` `findOrFail` `findOrNew` `first` `firstOr` `firstOrCreate` `firstOrFail` `firstOrNew` `firstWhere` `forceCreate` `forceDelete` `forwardCallTo` `forwardDecoratedCallTo` `fromQuery` `get` `getBelongsToRelation` `getEagerLoads` `getGlobalMacro` `getMacro` `getModel` `getModels` `getOriginalColumnNameForCursorPagination` `getQuery` `getRelation` `getRelationWithoutConstraints` `groupWhereSliceForScope` `has` `hasGlobalMacro` `hasMacro` `hasMorph` `hasNamedScope` `hasNested` `hydrate` `increment` `isNestedUnder` `latest` `lazy` `lazyById` `lazyByIdDesc` `make` `mergeConstraintsFrom`
+
+<!--
+
+TODO: firstやget, 色つけたい。
+
+メソッドをまた見てみましょう。今度はたったの162メソッドです。
+そしてfirstがあります、getもあります。
+
+-->
+
+---
+
+`newModelInstance` `oldest` `onDelete` `orDoesntHave` `orDoesntHaveMorph` `orHas` `orHasMorph` `orWhere` `orWhereBelongsTo` `orWhereDoesntHave` `orWhereDoesntHaveMorph` `orWhereHas` `orWhereHasMorph` `orWhereMorphRelation` `orWhereMorphedTo` `orWhereNot` `orWhereNotMorphedTo` `orWhereRelation` `orderedLazyById` `paginate` `paginateUsingCursor` `paginator` `parseNameAndAttributeSelectionConstraint` `parseWithRelations` `pluck` `prepareNestedWithRelationships` `qualifyColumn` `qualifyColumns` `registerMixin` `relationsNestedUnder` `removedScopes` `requalifyWhereTables` `scopes` `setEagerLoads` `setModel` `setQuery` `simplePaginate` `simplePaginator` `sole` `soleValue` `tap` `throwBadMethodCallException` `toBase` `unless` `update` `updateOrCreate` `upsert` `value` `valueOrFail` `when` `where` `whereBelongsTo` `whereDoesntHave` `whereDoesntHaveMorph` `whereHas` `whereHasMorph` `whereKey` `whereKeyNot` `whereMorphRelation` `whereMorphedTo` `whereNot` `whereNotMorphedTo` `whereRelation` `with` `withAggregate` `withAvg` `withCasts` `withCount` `withExists` `withGlobalScope` `withMax` `withMin` `withOnly` `withSum` `withWhereHas` `without` `withoutEagerLoad` `withoutEagerLoads` `withoutGlobalScope` `withoutGlobalScopes`
+
+<!--
+
+whereもありました。
+
+-->
+
+---
+
+# 
+
+<!--
+
+合計するとメソッド数が500を超えちゃってる気もしますが、これで一段落……。
+ではないんです。実は、まだ足りないものがあります。
+お気付きになられたでしょうか？
+selectも、joinも、groupByもorderByも、今の一覧にはありませんでした。
+
+-->
+
+---
+
+# 
+
+<!--
+
+Eloquent\Builderからは、さらに別のクラスのメソッドが
+呼び出されるようになっています。
+Illuminate\Database\Query\Builderというクラスです。
+Eloquent\ModelからEloquent\Builderへの委譲同様、
+マジックメソッドによって、Eloquent\Builderにないメソッドは
+Query\Builderのものが呼び出されるようになっています。
+そして今度こそ、私たちが普段使っている機能が一通り揃っています。
+
+-->
+
+---
+
+# 
+
+<!--
+
+IDE Helperなどを入れていい感じに補完が効くようにしている方は
+よくご存知かと思いますが、Eloquentのクラスから静的にメソッドを実行して、
+戻ってくるのはEloquent\Builderです。
+そこからメソッドをチェーンしていくときに使えるのは、
+Eloquent\BuilderかQuery\Builderのメソッドというわけです。
+
+-->
+
+---
+
+```php
+<?php
+
+namespace Illuminate\Database\Eloquent;
+
+class Builder
+{
+    public function __call($method, $parameters)
+    {
+        // ...
+
+        $this->forwardCallTo($this->query, $method, $parameters);
+
+        return $this;
+    }
+}
+```
+
+<!--
+
+ちなみにEloquent\Builderをチェーンしつつ
+Query\Builderのメソッドを使えるの、
+最初どういう実装になっているのかわからなかったんですが、
+こんな感じでした。
+
+単純に、委譲した結果をそのまま戻すのではなく、
+戻すのはEloquent\Builder自身になっているんです。
+
+面白い実装ですが、こうなると気になってくるのが、
+自身を戻す、チェーンするメソッド以外の場合どうなるのか、です。
+
+-->
+
+---
+
+```php
+<?php
+
+namespace Illuminate\Database\Eloquent;
+
+class Builder
+{
+    /**
+     * The methods that should be returned from query builder.
+     *
+     * @var string[]
+     */
+    protected $passthru = [
+        'aggregate', 'average', 'avg', 'count', 'dd', 'doesntExist', 'dump', 'exists', 'explain', 'getBindings', 'getConnection',
+        'getGrammar', 'insert', 'insertGetId', 'insertOrIgnore', 'insertUsing', 'max', 'min', 'raw', 'sum', 'toSql',
+    ];
+
+    public function __call($method, $parameters)
+    {
+        // ...
+
+        if (in_array($method, $this->passthru)) {
+            return $this->toBase()->{$method}(...$parameters);
+        }
+
+        $this->forwardCallTo($this->query, $method, $parameters);
+
+        return $this;
+    }
+}
+```
+
+<!--
+
+ちょっと上のコードに答えがありました。
+一部の、$passthruで指定されたメソッド、これらに委譲する場合、
+Eloquent\Builderを返すのではなく戻り値自体を返すようになっています。
+よく工夫されています。その分、理解するのは大変ですが。
+
+-->
+
+---
+
+# 
+
+<!--
+
+ちょっと戻って、Query\Builderのメソッドを見てみます。
+今度は229メソッドあります。まあもう一覧しません。
+というのも、今回見てみたいのは戻り値です。
+といっても、Laravelは今のところ戻り値の型は指定していないので、
+PHPDocの@returnで見る感じです。
+
+Query\Builderの各メソッドの戻り値ですが、半数以上が自身を戻すメソッドです。
+残りは結構ばらばらですが、取得した行や、
+そのコレクションを返すものがかなり多い感じです。
+
+この辺を見るだけでも、Query\Builderの姿、
+SQLクエリをメソッドチェーンで表現する、そのクエリを実行する。
+そういう仕事のためのクラスになっているのがわかるかと思います。
+
+-->
+
+---
+
+# 
+
+<!--
+
+さて、Query\Builderも興味深いクラスではあるのですが、
+実はこれ、Eloquentの範囲外だと思うんですよね。
+単純に、Illuminate\Database\Eloquent以下のクラスではないので……。
+
+ですのでこれ以上深堀はせず、進めます。
+
+-->
+
+---
+
+# 
+
+<!--
+
+Eloquent\Modelが、SQLの処理をEloquent\Builder経由でQuery\Builderに
+任せている。ここまでは問題ないですよね。
+しかしそうなったときに一つ気になることがあります。
+なぜ、Eloquent\Builder経由なんでしょうか？
+Eloquent\Modelが直接Query\Builderを使わないのはなぜでしょうか？
+
+-->
+
+---
+
+# 
+
+<!--
+
+それを知るには、
+Eloquent\Builderがなにを実装しているかを見ればよさそうです。
+Eloquent\Builderのメソッドには、Query\Builderをオーバーライド
+しているものと、そうでないもの、Eloquent\Builder独自のものがあります。
+前者から見てみましょう。
+
+-->
+
+---
+
+# 
+
+<!--
+
+まあいろいろあるんですが、目立つのは、whereやget, find,
+あとはlatestあたりですかね。
+これらのメソッドが、なぜQuery\Builderのものではなく、独自のものを
+使うようになっているのか、がわかれば、
+Eloquent\Builderの存在意義についてもわかりそうです。
+
+findやlatestは、これは主キーやタイムスタンプ、created_at, updated_at
+ですね、この辺が関係してくる機能です。
+つまりこれは、Eloquentが単なるクエリビルダと違って、テーブルの情報、
+この場合は主キーがなんであるか、タイムスタンプのカラムがなんであるか、
+みたいなことを知っているために、Query\Builderのそれが実装しているように、
+とりあえずidなりcreated_atなりをデフォルトとして既定する、ではなく、
+知っている情報に従って、適切なカラムを使うようにできる、
+それが理由です。
+
+Eloquent\Builderのfindは、Eloquent\Modelの$primaryKeyに設定された
+主キーを使います。latestは、定数CREATED_ATに設定された作成時に
+自動設定されるカラムを使います。
+
+-->
+
+---
+
+# 
+
+<!--
+
+whereやgetは、またちょっと別の理由で、独自に実装されています。
+これはQuery\Builderにはない、Eloquent独自の機能、
+グローバルスコープやリレーションのため。
+
+また、戻り値をstdClassではなくモデルのクラスで取得したり、
+さらにコレクションも、ただのコレクションではなくEloquentの独自の
+コレクションを使うようになっています。
+
+-->
+
+---
+
+# 
+
+<!--
+
+Eloquent\Builderにだけある、新規のメソッドについて見てみても、
+同じような感じです。
+やはり、Eloquentがテーブルのカラムの情報を知っていることに関するもの、
+グローバルスコープ、リレーションといったEloquent独自の機能、
+それらに関連するメソッドがほとんどです。
+
+つまり単純に、Eloquent\Builderの存在意義は、Query\Builderにはない、
+Eloquent独自の機能のうち、Query\Builderに関係の強いものを
+まとめておく、といった感じと考えてよさそうです。
+
+TODO: createとか、BuildQueriesとか、その辺の話は？　時間足りる？
+
+-->
+
+---
+
+# 
+
+<!--
+
+ここまででわかったことを簡単にまとめます。
+Eloquentの機能のうち、少なくない部分がEloquent\Builder,
+Query\Builderによるものでした。
+SQLを組み立てて、実行して、というあたりはほぼそうです。
+
+規模的にも、Eloquent\Modelが350メソッドあったのに対し、
+Builder 2つを合わせると同等以上ありました。
+実は2つのBuilderから同じトレイトを使っていたりして、
+単純計算で数えるのもちょっと違うんですが。
+
+ということで、Eloquentの半分近くはクエリビルダでできている、
+と考えてよいのではないでしょうか。
+そう考えると、Eloquentが意外とシンプルに見えてきます。
+
+-->
+
+---
+
+# 
+
+<!--
+
+
+
+-->
+
+---
