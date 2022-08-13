@@ -296,6 +296,8 @@ artisanのmake:modelコマンド、
 
 これらは、Eloquentと深い関係にありますが、範囲外とします。
 
+TODO: ついでにこの辺で、クラスの呼び方について話しておく？　I\Dは省略とか。
+
 -->
 
 ---
@@ -485,6 +487,8 @@ Eloquentの使い方としては大きく分けて、
 updateやdeleteで行を操作したり、ですね。
 今回は前者から見てみます。
 
+TODO: 前者から見てみます～、のところもうちょっとしっかり言う。
+
 さて、先程Eloquent\Modelを継承したクラスに実装されている
 メソッドを見てみました。350もありました。
 が、実はあの中には、whereもgetも、firstもありません。
@@ -550,6 +554,8 @@ code:nth-child(56) {
 </style>
 
 <!--
+
+Eloquent\Builderに実装されているメソッドです。
 
 firstがあります。
 getもありますね。
@@ -683,6 +689,8 @@ SQLクエリをメソッドチェーンで表現する、そのクエリを実�
 # なぜ直接Query\Builderを使わないのか？
 
 * Eloquent\Builderがなにを実装しているかを見ればよさそう
+  * Query\Builderのメソッドをオーバーライドしているもの
+  * それ以外＝Eloquent\Builder独自のもの
 
 <!--
 
@@ -696,9 +704,14 @@ Eloquent\Modelが直接Query\Builderを使わないのはなぜでしょうか�
 
 それを知るには、
 Eloquent\Builderがなにを実装しているかを見ればよさそうです。
+
+(めくる*2)
+
 Eloquent\Builderのメソッドには、Query\Builderをオーバーライド
 しているものと、そうでないもの、Eloquent\Builder独自のものがあります。
-前者から見てみましょう。
+
+前者から見てみましょう。Query\Builderにあるのにわざわざオーバーライド
+していることには、意味がありそうです。
 
 -->
 
@@ -745,6 +758,7 @@ li li:nth-child(3) code {
 <!--
 
 TODO: もうちょっと整理
+TODO: 主キーの知識とかのところ、もうちょっと強調！
 
 findやlatestは、これは主キーやタイムスタンプ、created_at, updated_at
 ですね、この辺が関係してくる機能です。
@@ -801,10 +815,12 @@ whereやgetは、またちょっと別の理由で、独自に実装されてい
   - 名前に`scope`を含むもの
   - 名前に`eagerLoad` `relation` `with`を含むもの
 <!-- 
+/*
 - 共通で使用しているBuildQueriesトレイトにあるもの
   - chunk, each, lazy
   - first
   - paginator, simplePaginator
+  */
 -->
 
 <!--
@@ -867,6 +883,8 @@ User::where('id', $id)      // これはEloquent\Builder
 ```
 
 <!--
+
+TODO: 時間足りなければ削除。逆に余裕あれば、もうちょっとわかりやすくしても？
 
 ちなみにEloquent\Builderをチェーンしつつ
 Query\Builderのメソッドを使えるの、
