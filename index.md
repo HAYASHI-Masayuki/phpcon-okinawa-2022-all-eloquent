@@ -1294,7 +1294,493 @@ HasRelationshipsあたりです。
 
 <!--
 
+Eloquent\Modelから使われているトレイトの中で、
+HasAttributesに次ぐ規模ではあるんですが、
+それでもHasRelationshipsのメソッド数は50に届かないほどです。
 
+-->
+
+---
+
+# 
+
+<!--
+
+でも、リレーションって割と重要な機能ですよね？
+じゃあ、また委譲があるのか、と思われるかもしれませんが、
+今回はちょっと違います。
+
+-->
+
+---
+
+```php
+<?php
+
+namespace App\Models;
+
+use Illuminate\Database\Eloquent\Model;
+
+class Post extends Model
+{
+    public function user()
+    {
+        return $this->belongsTo(User::class);
+    }
+}
+```
+
+<!--
+
+Eloquentでリレーションを使うときって、こんな感じですよね。
+モデルクラスにhasOneとかhasMany, belongsToみたいなメソッドを
+実行して返すメソッドを実装する。
+
+-->
+
+---
+
+# 
+
+```php
+<?php
+
+namespace Illuminate\Database\Eloquent\Concerns;
+
+use Illuminate\Database\Eloquent\Relations\HasOne;
+
+trait HasRelationships
+{
+    public function hasOne($related, $foreignKey = null, $localKey = null)
+    {
+        // ...
+
+        return $this->newHasOne($instance->newQuery(), $this, $instance->getTable().'.'.$foreignKey, $localKey);
+    }
+
+    protected function newHasOne(Builder $query, Model $parent, $foreignKey, $localKey)
+    {
+        return new HasOne($query, $parent, $foreignKey, $localKey);
+    }
+}
+```
+
+<!--
+
+このhasOneやbelongsToのようなメソッド、これらがHasRelationshipsに
+実装されているわけですが、そこでなにをしているのかというと、
+それぞれメソッドごとに個別の、
+Illuminate\Database\Eloquent\Relations\Relationを継承しているクラスの
+インスタンスが生成されているんです。
+
+-->
+
+---
+
+# 
+
+- `BelongsTo`
+- `BelongsToMany`
+- `HasMany`
+- `HasManyThrough`
+- `HasOne`
+- `HasOneThrough`
+- `MorphMany`
+- `MorphOne`
+- `MorphTo`
+- `MorphToMany`
+
+<!--
+
+ということで、ここでいきなり10クラスほど追加です。
+もちろん一つずつ見ていったらきりがないので、まとめて把握しましょう。
+
+-->
+
+---
+
+# 
+
+<!--
+
+さて、その前に、リレーションとはなんでしょう？
+あるテーブルのある行の持つカラムを元に、
+別のテーブルのある行を特定できるとき、
+それらの行が関連している、という感じでしょうか。
+
+-->
+
+---
+
+# 
+
+<!--
+
+具体的な実装としては、ちょっと分け方が難しいですが、
+今回は3パターンあるとしましょう。
+
+1つは、こちらのテーブルのあるキーの値を、
+関連するテーブルのあるカラムが持っている、というパターンです。
+
+Eloquentで言うと、hasOne, hasManyのパターンです。
+
+-->
+
+---
+
+# 
+
+<!--
+
+2つ目は、1つ目のパターンの逆の視点です。
+こちらのテーブルが、関連するテーブルのあるキーの値を持っている。
+
+Eloquentで言う、belongsToです。
+
+もしかするとEloquentを使い始めた当初、hasOne, hasManyはあるのに、
+belongsToに対応するものがない、と思ったかもしれません。
+belongsToManyはありますが、あれは多対多ですからね。
+
+まあ当然で、こちらの視点からは、関連する行は1つになるからです。
+
+-->
+
+---
+
+# 
+
+<!--
+
+3つ目です。中間テーブルを介した多対多ですね。
+こちらのテーブルと、関連するテーブルの両方のキーを、
+中間テーブルが持っているという形です。
+
+EloquentではbelongsToManyが該当します。
+
+-->
+
+---
+
+# 
+
+- `BelongsTo`
+- `BelongsToMany`
+- `HasMany`
+- `HasManyThrough`
+- `HasOne`
+- `HasOneThrough`
+- `MorphMany`
+- `MorphOne`
+- `MorphTo`
+- `MorphToMany`
+
+<style scoped>
+li:nth-child(1) code,
+li:nth-child(2) code,
+li:nth-child(3) code,
+li:nth-child(5) code {
+  color: #f00;
+  text-decoration: underline;
+}
+</style>
+
+<!--
+
+さて、おかしいですね。
+ここまでの3パターンで、Eloquentで該当するクラスは、まだ4つだけです。
+残りの6つはなんでしょうか？
+
+よく見ると、名前にパターンがあります。
+残っているものは、HasOne, HasManyにThroughがついたもの、
+接頭辞にMorphがついたもの、の2パターンです。
+
+-->
+
+---
+
+# 
+
+<!--
+
+HasOneThrough, HasManyThroughはそれぞれ、通常のリレーションと違い、
+もう一段階先のテーブルにアクセスするリレーションですね。
+
+たとえばUserがPostを投稿し、そのPostにCommentがつくようなリレーションで、
+Userから直接commentsを取得できるような感じです。
+
+Morph系はポリモーフィック関連です。SQLアンチパターンにあるやつですね。
+
+-->
+
+---
+
+# 
+
+- `Relation` *
+  - `HasOneOrMany` *
+    - `HasOne`
+    - `HasMany`
+    - `MorphOneOrMany` *
+      - `MorphOne`
+      - `MorphMany`
+  - `BelongsTo`
+    - `MorphTo`
+  - `BelongsToMany`
+    - `MorphToMany`
+  - `HasManyThrough`
+    - `HasOneThrough`
+
+<!--
+
+さて、
+これらのクラスの継承のツリーを書いてみると、面白いことがわかります。
+その前に右に※がついているのは、これは抽象クラスですね。
+
+このツリー構造を横目に、コードをざっと見てみます。
+
+SQLレベルで考えると、HasOneとHasManyは大差ありません。
+なのでこの2つは、同じHasOneOrManyという抽象クラスを継承して、
+それぞれ自身の実装は最小限です。
+
+次に、ポリモーフィック関連のMorphなんとかクラスが、
+元になるクラスと近くにあること。
+そして独自に実装しているコードも、やはり最小限です。
+
+ポリモーフィック関連は、Eloquentから見ると、
+単に見るテーブルが動的に変わるだけで、
+案外気にするところは少ないということではないでしょうか。
+
+ほかにもHasOne, HasManyは親となる抽象クラスがあるのに、
+HasOneThroughはHasManyThroughを直接継承しているのはなぜか、
+みたいなところも気になりますが、時間もないのでこの辺は
+みなさん考えてみてください。
+
+Pivotなんかも面白いんですけどね、これも飛ばします。
+一つだけ言うとこれはBelongsToManyでの中間テーブルなんですが、
+Eloquent\Modelを継承しているんですよね。
+つまり、やはりEloquent\Modelは特定のテーブルの抽象なんですよ。
+
+-->
+
+---
+
+# 
+
+<!--
+
+さて、長くなりました。
+実際リレーションはほかにも、hasやwhereHas, withやload,
+その他面白いところなんですが、さすがに時間がないので飛ばします。
+
+ここまででわかったことは、Eloquentの中でのリレーションという機能の
+大きさ・広さですね。
+
+SQL/RDBMSにもリレーション自体はあるのですが、Eloquentはそれをそのまま
+持つだけでなく、オブジェクト指向に合わせた形にして持っています。
+
+ある行から直接関連する行を取得できたり、ある行に関連するものとして、
+直接別のテーブルの行を挿入できたり。
+
+TODO: Relationがクエリだってあたりも書きたい。が、そもそも時間がだいぶ厳しい。
+逆にこの辺大幅整理するタイミングで書けるかも。
+
+-->
+
+---
+
+# 
+
+<!--
+
+HasAttributes, HasRelationshipsと、Eloquent\Modelから使われている
+大きなトレイトを2つ見てきました。
+
+残りはどれも小さなもので、理解も簡単です。HasTimestampsは、created_at,
+updated_atあたりの関係ですね。
+
+-->
+
+---
+
+# 
+
+<!--
+
+HasGlobalScopesも名前通り、グローバルスコープ関係です。
+グローバルスコープは、モデル単位ですべてのクエリに制約をかけるといった
+効果範囲の広い機能で、そのためEloquent\Model, Eloquent\Builderにもあちこちに
+出てきますし、その上で単体のトレイトもあります。
+
+論理削除を実現するSoftDeletesトレイトがこの機能を使って実装されてます。
+それくらい広い範囲に影響する機能なので、ちょっと危険で、個人的には
+あまり使いたくない機能ですが……。
+
+-->
+
+---
+
+# 
+
+<!--
+
+HasEventsは、モデルの作成・更新・削除などの各タイミングで
+フックを行うためのものです。
+
+HideAttributesとGuardAttributesは入出力のセキュリティ機能です。
+HideAttributesは$visible, $hiddenという2つのプロパティを持ち、
+これらの設定によって、各種シリアライズ時に出力するかしないかを
+決めます。
+
+GuardAttributesはその逆に近いもので、
+おなじみの$fillable, $guarded絡みですね。
+これは入力を直接保存するような場合のガード用なのですが、
+実際入力内容をバリデーションもせず保存する場合に、
+カラム単位で保存の可否を制限できるだけで、本質的な安全性には無関係、
+ですので私は使いません。
+しかし使わないということも封じられているので、
+空の$guardedを設定するのですが。
+Eloquentの数多の機能の中でも、完全に間違った機能だと言い切れるのは
+これだけです。
+
+-->
+
+---
+
+# 
+
+<!--
+
+Eloquent\Model本体の機能も、ざっとですが見ていきましょう。
+
+TODO: ここはスライドに頼るかな……。
+
+クラスを使うときに常に一度だけ動く、boot的な処理だったり、
+自身を含む関連オブジェクトの生成やらのファクトリ的なメソッド、
+データベース接続関係、テーブル・カラム情報関係、リレーション関係、
+シリアライズ関係、グローバルスコープ・ローカルスコープ、
+ページネーション、オブジェクトとしての機能、
+インターフェイスを実装するために必要なメソッド、……。
+
+それぞれ必要な機能ではあるのですが、
+Eloquentの全体像を知るために重要かというと。
+
+やはりEloquent\Model本体に実装されている機能は、
+雑多でトレイトにまとめづらいために残っているのかもしれません。
+
+-->
+
+---
+
+# 
+
+<!--
+
+もうちょっとだけ続きます。次は、fill, save, updateやdeleteです。
+fillは渡した値を$attributesに設定するメソッドです。
+saveは、$attributesをデータベースに保存します。
+updateはfillしてsaveですね。deleteは、単に行を削除します。
+
+Eloquent\Modelには、クエリを直接操作するメソッドはほぼないのですが、
+この辺は数少ない例外です。
+
+なぜこういう例外があるのか。
+単純に、updateやdeleteは、直接行に対しての処理だからです。
+
+-->
+
+---
+
+# 
+
+<!--
+
+さて、ここで気になることがありますcreateはどこに行ったのでしょうか。
+update, deleteがEloquent\Modelにあるのに、createはありません。
+createはEloquent\Builderにあります。
+ついでに言うと、Query\Builderにもありません。
+Query\Builderにはinsertはありますが、createはなく、
+Eloquent\Builderにはcreateはありますが、insertはありません。
+
+冒頭、User::insertのようにした場合の話をしましたが、
+もうわかったと思います。User::insertはQuery\Builder::insertを呼んでいて、
+Query\BuilderはEloquent\Builderとは違い、テーブルに関する情報を持っていません。
+そのため、タイムスタンプには関知しない、というわけでした。
+
+-->
+
+---
+
+# 
+
+<!--
+
+戻ります。createが、Eloquent\Modelではなく、Eloquent\Builderにあるのは、
+一体どういう意味を持つのでしょうか？
+もうわかりますよね。createは行に対する処理ではないからです。
+SQLでINSERTするとき、テーブル名は指定しますが、
+WHERE句で行を指定するわけではありません。
+もちろんSELECTしたものをINSERTする場合は別ですが。
+
+-->
+
+---
+
+# 
+
+<!--
+
+この辺でもう一つ見えてこないでしょうか？
+Eloquent\Modelを継承したクラスは、クラスとして使用するとき、
+たとえば静的メソッドを実行したり、プロパティや定数、
+あるいはメソッドを定義するとき、
+この場合には、テーブルを表現しています。
+
+-->
+
+---
+
+# 
+
+<!--
+
+一方、インスタンスとして生成された場合には、今度は行を表現しています。
+気付いてしまえば簡単でわかりやすいことですが、
+私は使い始めてから、しばらくの間気付きませんでした。
+
+-->
+
+---
+
+# 
+
+<!--
+
+この使い分けを理解していれば、たとえばcreateがEloquent\Modelではなく
+Eloquent\Builderに実装されていることも自然に感るのではないでしょうか。。
+
+-->
+
+---
+
+# 
+
+<!--
+
+またたとえば、私は昔$userインスタンスからwhereが生えてるというコードを
+見たことがあるんですが、
+当時、このようなコードに対して適切な指摘はできませんでした。
+
+これはおかしいですが、実際問題なく動きます。
+
+ドキュメントにそういう書き方はしていない、普通そう使わない、
+あるいはせいぜい、インスタンスである意味がない、くらいでしょうか、
+そういうコードをレビューするとしても、それくらいのことしか
+言えなかったと思います。
+
+しかしモデルがクラスであるか、インスタンスであるかによって
+テーブルの表現だったり行の表現だったりすることを知った今では、
+「行の表現であるインスタンスからwhereを呼び出すのはおかしい」
+と言えるわけです。
 
 -->
 
