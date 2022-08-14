@@ -292,7 +292,8 @@ Eloquentの全貌を理解していれば、スムーズに解決できるので
 規模について考える前にもう一つだけ。
 このセッションで話す、
 「Eloquent」の範囲について、前提となる認識を作りたいと思います。
-(切り替え)
+
+(めくる)
 といっても簡単です。このセッションでは、
 \Illuminate\Database\Eloquent\Modelを継承したクラスについて、
 Eloquentのモデル、として扱い、それをEloquentの範囲とします。
@@ -310,11 +311,14 @@ Eloquentのモデル、として扱い、それをEloquentの範囲とします�
 <!--
 
 つまり、
-(切り替え)
+
+(めくる)
 \Illuminate\Database以下でもEloquent以外の名前空間のものや、
-(切り替え)
+
+(めくる)
 artisanのmake:modelコマンド、
-(切り替え)
+
+(めくる)
 あるいはファクトリ。
 
 これらは、Eloquentと深い関係にありますが、範囲外とします。
@@ -748,12 +752,10 @@ Eloquent\Modelが、SQLの処理をEloquent\Builder経由でQuery\Builderに
 Eloquent\Modelが直接Query\Builderを使わないのはなぜでしょうか？
 
 (めくる)
-
 それを知るには、
 Eloquent\Builderがなにを実装しているかを見ればよさそうです。
 
 (めくる*2)
-
 Eloquent\Builderのメソッドには、Query\Builderをオーバーライド
 しているものと、そうでないもの、Eloquent\Builder独自のものがあります。
 
@@ -899,20 +901,17 @@ TODO: createとか、BuildQueriesとか、その辺の話は？　時間足り�
 ここまででわかったことを簡単にまとめます。
 
 (めくる)
-
 Eloquentの機能のうち、少なくない部分がEloquent\Builder,
 Query\Builderによるものでした。
 SQLを組み立てて、実行して、というあたりはほぼそうです。
 
 (めくる)
-
 規模的にも、Eloquent\Modelが350メソッドあったのに対し、
 Builder 2つを合わせると同等以上ありました。
 実は2つのBuilderから同じトレイトを使っていたりして、
 単純計算で数えるのもちょっと違うんですが。
 
 (めくる)
-
 ということで、Eloquentの半分近くはクエリビルダでできている、
 と考えてよいのではないでしょうか。
 そう考えると、Eloquentが意外とシンプルに見えてきます。
