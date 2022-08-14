@@ -296,7 +296,31 @@ artisanのmake:modelコマンド、
 
 これらは、Eloquentと深い関係にありますが、範囲外とします。
 
-TODO: ついでにこの辺で、クラスの呼び方について話しておく？　I\Dは省略とか。
+-->
+
+---
+
+# 名前について1
+
+- Illuminate\Database\Eloquent\Model -> Eloquent\Model
+- Illuminate\Database\Query\Builder -> Query\Builder
+
+<!--
+
+なおクラス名の呼び方ですが、
+基本的にIlluminate\Databaseまでは省略しようと思います。
+
+-->
+
+---
+
+# 名前について2
+
+- Eloquent\Modelを継承したオブジェクト -> モデル
+
+<!--
+
+また、Eloquent\Modelを継承したオブジェクトを「モデル」と呼びます。
 
 -->
 
