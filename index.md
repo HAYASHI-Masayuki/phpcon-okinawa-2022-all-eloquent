@@ -1893,7 +1893,27 @@ Eloquentはそれをそのまま持つだけでなく、
 
 ---
 
-# 
+# Eloquent\Modelが使用するその他のトレイト
+
+```php
+<?php
+
+namespace Illuminate\Database\Eloquent;
+
+abstract class Model
+{
+    use Concerns\HasAttributes,
+        Concerns\HasEvents,
+        Concerns\HasGlobalScopes,
+        Concerns\HasRelationships,
+        Concerns\HasTimestamps,
+        Concerns\HidesAttributes,
+        Concerns\GuardsAttributes,
+        ForwardsCalls;
+
+    // ...
+}
+```
 
 <!--
 
@@ -1902,64 +1922,97 @@ Eloquentはそれをそのまま持つだけでなく、
 HasAttributes, HasRelationshipsと、Eloquent\Modelから使われている
 大きなトレイトを2つ見てきました。
 
-残りはどれも小さなもので、理解も簡単です。HasTimestampsは、created_at,
-updated_atあたりの関係ですね。
-
--->
-
----
-
-# 
-
-<!--
+残りはどれも小さなもので、理解も簡単です。HasTimestampsは、
+created_at, updated_atあたりの関係ですね。
 
 HasGlobalScopesも名前通り、グローバルスコープ関係です。
-グローバルスコープは、モデル単位ですべてのクエリに制約をかけるといった
-効果範囲の広い機能で、そのためEloquent\Model, Eloquent\Builderにもあちこちに
-出てきますし、その上で単体のトレイトもあります。
+グローバルスコープは、モデル単位ですべてのクエリに
+制約をかけるといった効果範囲の広い機能で、
+そのためEloquent\Model, Eloquent\Builderにもあちこちに
+関連コードが出てきますし、その上で単体のトレイトもあります。
+リレーションに近いですね。リレーションよりは小さいですが。
 
-論理削除を実現するSoftDeletesトレイトがこの機能を使って実装されてます。
-それくらい広い範囲に影響する機能なので、ちょっと危険で、個人的には
-あまり使いたくない機能ですが……。
-
--->
-
----
-
-# 
-
-<!--
+論理削除を実現するSoftDeletesトレイトがこの機能を使って
+実装されてます。それくらい広い範囲に影響する機能なので、
+ちょっと危険で、個人的にはあまり使いたくない機能ですが……。
 
 HasEventsは、モデルの作成・更新・削除などの各タイミングで
 フックを行うためのものです。
 
-HideAttributesとGuardAttributesは入出力のセキュリティ機能です。
-HideAttributesは$visible, $hiddenという2つのプロパティを持ち、
-これらの設定によって、各種シリアライズ時に出力するかしないかを
-決めます。
-
-GuardAttributesはその逆に近いもので、
-おなじみの$fillable, $guarded絡みですね。
-これは入力を直接保存するような場合のガード用なのですが、
-実際入力内容をバリデーションもせず保存する場合に、
-カラム単位で保存の可否を制限できるだけで、本質的な安全性には無関係、
-ですので私は使いません。
-しかし使わないということも封じられているので、
-空の$guardedを設定するのですが。
-Eloquentの数多の機能の中でも、完全に間違った機能だと言い切れるのは
-これだけです。
+TODO: この辺、ただのサンプルコードでもいいから、もうちょっとスライドなんとか！
 
 -->
 
 ---
 
-# 
+```php
+<?php
+
+namespace App\Models;
+
+// これはEloquent\Modelを継承したクラス
+use Illuminate\Foundation\Auth\User as Authenticatable;
+
+class User extends Authenticatable
+{
+    protected $fillable = [
+        'name',
+        'email',
+        'password',
+    ];
+
+    protected $hidden = [
+        'password',
+        'remember_token',
+    ];
+
+    // ...
+}
+```
+
+<!--
+
+HidesAttributesとGuardAttributesは入出力のセキュリティ機能です。
+HidesAttributesは$visible, $hiddenという2つのプロパティを持ち、
+これらの設定によって、各種シリアライズ時に出力するかしないかを
+決めます。
+
+この例では、パスワード、まあハッシュですが、とはいえどこかに
+出力するような使い方をするものではないわけです。
+そういう場合にこうしておくと、安全なわけです。
+
+GuardAttributesはその逆に近いもので、
+おなじみの$fillable, $guarded絡みですね。
+これは入力を直接保存するような場合のガード用です。
+つまり、$request->all()したものをcreateにそのまま突っ込む、
+みたいな場合用のセーフティです。
+
+ただ、入力内容をバリデーションもせず保存する場合に、
+カラム単位で保存の可否を制限できるだけで、
+本質的な安全性にはまったくつながりません。
+結局チェックなしの入力が危険なことには変わらないのです。
+ですので私は使いませんね。
+
+-->
+
+---
+
+# Eloquent\Model本体に実装されている機能
+
+- クラスを使うときに常に一度だけ動く、boot的な処理
+- 自身を含む関連オブジェクトを生成するファクトリ的なメソッド
+- データベース接続関係
+- テーブル・カラム情報関係
+- リレーション関係
+- シリアライズ関係
+- グローバルスコープ・ローカルスコープ関係
+- ページネーション関係
+- オブジェクトとしての有用性のための機能
+- インターフェイスを実装するために必要なメソッド
 
 <!--
 
 Eloquent\Model本体の機能も、ざっとですが見ていきましょう。
-
-TODO: ここはスライドに頼るかな……。
 
 クラスを使うときに常に一度だけ動く、boot的な処理だったり、
 自身を含む関連オブジェクトの生成やらのファクトリ的なメソッド、
@@ -1978,7 +2031,17 @@ Eloquentの全体像を知るために重要かというと。
 
 ---
 
-# 
+# fill, save, update, delete
+
+```php
+<?php
+
+// 以下2行はほぼ同等
+$user->fill(['name' => 'saburou'])->save();
+$user->update(['name' => 'saburou']);
+
+$user->delete();
+```
 
 <!--
 
