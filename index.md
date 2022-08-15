@@ -2145,7 +2145,7 @@ class User extends Authenticatable
 
     // シリアライズするときに表示しないカラムを指定
     protected $hidden = ['password', 'remember_token'];
- 
+
     // 作成日時のタイムスタンプとして扱うカラムを指定
     const CREATED_AT = 'create_datetime';
 
@@ -2224,7 +2224,12 @@ $user->where('id', $id);
 
 ---
 
-# 
+# Eloquentの抽象構造
+
+- Eloquentの中心は、Eloquent\Modelを継承したクラス
+  - 特定のテーブル・行を表現
+    - SQLクエリとその実行を表現しているQuery\Builderがと比べると、より具体的
+  - クラスはテーブルを、インスタンスは行を表現
 
 <!--
 
@@ -2234,14 +2239,24 @@ Eloquentの中心となるのは、Eloquent\Modelを継承したクラスです�
 その実行を全面的に表現しているのに対して、
 モデルクラスが表現するのは特定のテーブルと、その行です。
 
-クラスとして使用する場合はテーブルを、インスタンスとして使用する場合は、
+クラスとして使用する場合はテーブルを、
+インスタンスとして使用する場合は、
 さらにテーブル内の特定の行を表現していると考えてよさそうです。
 
 -->
 
 ---
 
-# 
+# Eloquentの実装構造
+
+- Eloquent\Model
+  - 静的メソッドを呼び出された場合に委譲→Eloquent\Builder
+    - 一部メソッドはさらに委譲→Query\Builder
+  - HasAttributes
+    - アトリビュートを表現
+  - HasRelationships
+    - Eloquent\Relations\Relationを継承した各クラスと共に、リレーションを表現
+  - その他のトレイト、Eloquent\Model本体のメソッド
 
 <!--
 
@@ -2254,7 +2269,14 @@ Eloquent\Modelが使用しているHasAttributesを中心に実装されてい�
 
 ---
 
-# 
+# モデルクラスは、テーブル特有の知識を持てる
+
+- 主キーの名前、型
+- 作成・更新日時のタイムスタンプのカラム名
+- リレーション
+- 接続先
+- アトリビュートのデフォルト値
+- オブジェクトとしての型情報
 
 <!--
 
@@ -2275,7 +2297,31 @@ Eloquent\Modelが使用しているHasAttributesを中心に実装されてい�
 
 ---
 
-# 
+# テーブルごとの知識
+
+```php
+<?php
+
+namespace App\Models;
+
+use App\ValueObject\Name;
+use Illuminate\Database\Eloquent\Casts\Attribute;
+use Illuminate\Foundation\Auth\User as Authenticatable;
+
+class User extends Authenticatable
+{
+    protected $attributes = ['email' => 'dummy@example.com'];
+
+    const CREATED_AT = 'create_datetime';
+
+    public function name(): Attribute
+    {
+        return Attribute::make(
+            get: fn ($value) => new Name($value),
+        );
+    }
+}
+```
 
 <!--
 
@@ -2288,7 +2334,7 @@ Eloquent\Modelが使用しているHasAttributesを中心に実装されてい�
 
 ---
 
-# 
+# TODO
 
 <!--
 
@@ -2296,14 +2342,25 @@ Eloquent\Modelが使用しているHasAttributesを中心に実装されてい�
 つまりモデルの行の操作を行うこともできます。
 
 前者はupdate, delete, 後者はリレーション。
-前者はE\M本体に、後者はHasRelationships経由で、
+前者はEloquent\Model本体に、後者はHasRelationships経由で、
 各リレーション系のクラスに実装されています。
 
 -->
 
 ---
 
-# 
+# リレーション
+
+```php
+<?php
+
+// users.id = posts.user_idの場合に、$user->id = posts.user_idの行を取得する
+// 
+// SELECT * FROM users JOIN posts ON users.id = posts.user_idというより、
+// SELECT * FROM users WHERE id = ?と
+// SELECT * FROM posts WHERE user_id = ?
+$user->posts;
+```
 
 <!--
 
@@ -2318,7 +2375,23 @@ Eloquentは全体的に、SQL/RDBMSを表現していると言えますが、
 
 ---
 
-# 
+# Eloquentの機能2
+
+```php
+<?php
+
+// DELETE FROM users WHERE id = ?
+$user->delete();
+
+// SoftDeletesトレイトを使用したモデルを削除
+$userUsingSoftDeletes->delete();
+
+// グローバルスコープにより、deleted_at IS NOT NULLが常に付与
+UserUsingSoftDeletes::find($userUsingSoftDeletes->id); // null
+
+// withTrashedは上記グローバルスコープを一時的に解除する
+UserUsingSoftDeletes::withTrashed()->find($userUsingSoftDeletes->id); // 取得できる
+```
 
 <!--
 
@@ -2334,19 +2407,44 @@ SQLの最もやっかいな、WHERE句の条件の再利用ができないとい
 
 ---
 
-# 
+# Eloquentの機能3
+
+```php
+<?php
+
+$user = User::find(1);
+$user->isDirty('name'); // false
+
+$user->name = 'new name';
+$user->isDirty('name'); // true
+
+$user->update(['name' => 'new name']);
+$user->isDirty('name'); // false
+$user->wasChanged('name'); // true
+```
 
 <!--
 
 細かい機能もいろいろあります。行をカラム単位で変更して、
-行単位で更新・削除したり、そのような処理の流れのライフサイクルがあり、
+行単位で更新・削除したり、そのような処理の流れのライフサイクルがあり
 ライフサイクルごとにイベントを設定できたりします。
 
 -->
 
 ---
 
-# 
+# Eloquentの機能4
+
+```php
+<?php
+
+$user1 = User::find(1);
+$user2 = User::find(2);
+
+$user1->is($user2);
+
+$user1_ = $user1->replicate();
+```
 
 <!--
 
@@ -2357,7 +2455,10 @@ SQLの最もやっかいな、WHERE句の条件の再利用ができないとい
 
 ---
 
-# 
+# Eloquentの機能5
+
+```php
+```
 
 <!--
 
@@ -2369,7 +2470,7 @@ Laravelのほかの機能や、その他外部との連携を考えた機能も�
 
 ---
 
-# 
+# Eloquentの全貌
 
 <!--
 
