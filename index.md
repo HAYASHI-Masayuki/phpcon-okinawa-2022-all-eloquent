@@ -2060,79 +2060,147 @@ Eloquent\Modelには、クエリを直接操作するメソッドはほぼない
 
 ---
 
-# 
+# createはどこ？
+
+- update, deleteはEloquent\Modelにある
+* createは、**Eloquent\Builderにある**
 
 <!--
 
 さて、ここで気になることがありますcreateはどこに行ったのでしょうか。
 update, deleteがEloquent\Modelにあるのに、createはありません。
+
+(めくる)
 createはEloquent\Builderにあります。
-ついでに言うと、Query\Builderにもありません。
-Query\Builderにはinsertはありますが、createはなく、
-Eloquent\Builderにはcreateはありますが、insertはありません。
-
-冒頭、User::insertのようにした場合の話をしましたが、
-もうわかったと思います。User::insertはQuery\Builder::insertを呼んでいて、
-Query\BuilderはEloquent\Builderとは違い、テーブルに関する情報を持っていません。
-そのため、タイムスタンプには関知しない、というわけでした。
 
 -->
 
 ---
 
-# 
+# create, update, deleteの使い方
+
+```php
+<?php
+
+$user = User::create(...);
+$user->update(...);
+$user->delete();
+```
 
 <!--
 
-戻ります。createが、Eloquent\Modelではなく、Eloquent\Builderにあるのは、
-一体どういう意味を持つのでしょうか？
-もうわかりますよね。createは行に対する処理ではないからです。
+create, update, deleteの使い方をそれぞれ見れば、
+納得行くのではないでしょうか。
+
+createは、update, deleteとは違い行に対する処理ではないからです。
+テーブルに対する処理です。テーブルに対する処理はEloquent\Builderに
+実装されて、モデルクラスの静的メソッドとして呼ばれます。
+
 SQLでINSERTするとき、テーブル名は指定しますが、
-WHERE句で行を指定するわけではありません。
-もちろんSELECTしたものをINSERTする場合は別ですが。
+WHERE句で行を指定するわけではありませんよね。
+
+さて、この辺でもう一つ見えてこないでしょうか？
 
 -->
 
 ---
 
-# 
+### モデルクラスは、クラスとして使用するときテーブルを表現している
+
+```php
+<?php
+
+// usersテーブルから、id = 1の行を取得
+User::find(1);
+
+// usersテーブルから、email like '%@example.com'の行をすべて取得
+User::where('email', 'like', '%@example.com')->get();
+
+// another_db上のusersテーブルの行をすべて取得
+User::on('another_db')->all();
+```
 
 <!--
 
-この辺でもう一つ見えてこないでしょうか？
-Eloquent\Modelを継承したクラスは、クラスとして使用するとき、
-たとえば静的メソッドを実行したり、プロパティや定数、
-あるいはメソッドを定義するとき、
+モデルクラスは、クラスとして使用するときテーブルを表現しています。
+たとえば静的メソッドを実行したり、
+
+-->
+
+---
+
+### モデルクラスは、クラスとして使用するときテーブルを表現している
+
+```php
+<?php
+
+namespace App\Models;
+
+use Illuminate\Foundation\Auth\User as Authenticatable;
+
+class User extends Authenticatable
+{
+    // usersテーブルのemailカラムにデフォルト値を設定
+    protected $attributes = ['email' => 'dummy@example.com'];
+
+    // シリアライズするときに表示しないカラムを指定
+    protected $hidden = ['password', 'remember_token'];
+ 
+    // 作成日時のタイムスタンプとして扱うカラムを指定
+    const CREATED_AT = 'create_datetime';
+
+    // postsテーブルへのリレーションを設定
+    public function posts()
+    {
+        return $this->hasMany(Post::class);
+    }
+}
+```
+
+<!--
+
+プロパティや定数、あるいはリレーションを定義するとき、
 この場合には、テーブルを表現しています。
 
 -->
 
 ---
 
-# 
+# インスタンスとして使用するときは、行を表現している
+
+```php
+<?php
+
+$user = User::find(1);
+echo $user->name;
+
+foreach ($user->posts as $post) {
+    // ...
+}
+
+$user->update([...]);
+```
 
 <!--
 
 一方、インスタンスとして生成された場合には、今度は行を表現しています。
 気付いてしまえば簡単でわかりやすいことですが、
-私は使い始めてから、しばらくの間気付きませんでした。
+私は結構長い間気付きませんでした。
 
 -->
 
 ---
 
-# 
+# モデルインスタンスからwhereが生えているコード
 
-<!--
+```php
+<?php
 
-この使い分けを理解していれば、たとえばcreateがEloquent\Modelではなく
-Eloquent\Builderに実装されていることも自然に感るのではないでしょうか。。
+$user = User::find(1);
 
--->
-
----
-
-# 
+// User::where('id', $id)と同じように動く
+$user->where('id', $id);
+```
 
 <!--
 
