@@ -110,7 +110,7 @@ TODO: タイトル
 User::create([
     'name'              => 'tarou',
     'email'             => 'tarou@example.com',
-    'password'          => bcrypt('...'),
+    'password'          => bcrypt('password'),
     'email_verified_at' => now()
 ]);
 
@@ -118,7 +118,7 @@ User::create([
 $user = new User();
 $user->name              = 'tarou';
 $user->email             = 'tarou@example.com';
-$user->password          = bcrypt('...');
+$user->password          = bcrypt('password');
 $user->email_verified_at = now();
 $user->save();
 ```
@@ -146,7 +146,7 @@ $user = User::firstOrCreate([
     'email'             => 'tarou@example.com',
 ], [
     'name'              => 'tarou',
-    'password'          => bcrypt('...'),
+    'password'          => bcrypt('password'),
     'email_verified_at' => now(),
 ]);
 ```
@@ -187,8 +187,8 @@ $user->posts()->updateOrCreate(['user_id' => $user->id], $attributes);
 use App\Models\User;
 
 User::insert([
-  ['name' => 'tarou', 'email' => 'tarou@example.com', 'password' => bcrypt('...')],
-  ['name' => 'jirou', 'email' => 'jirou@example.com', 'password' => bcrypt('...')],
+  ['name' => 'tarou', 'email' => 'tarou@example.com', 'password' => bcrypt('password')],
+  ['name' => 'jirou', 'email' => 'jirou@example.com', 'password' => bcrypt('password')],
 ]);
 ```
 
@@ -499,15 +499,16 @@ wasChangedの後はwithです、whereありませんね。
 <?php
 
 $users = User::where('email', 'like', '%@example.com')->get();
-$user  = User::where('id', $id)->first();
+$user  = User::where('id', 1)->first();
 
 echo $user->name;
-$user->update(['password' => bcrypt('...')]);
+$user->update(['password' => bcrypt('password')]);
 ```
 
 <!--
 
 (2章: 6分～)(16→10分？)
+
 さて、ではさっそく進めていきたいと思います。
 まずは、Eloquentの使い方から考えていきます。
 
@@ -666,7 +667,7 @@ SQLを操作する際に使うメソッドは、ほとんどここに実装さ�
 ```php
 <?php
 
-echo get_class(User::where('id', $id));
+echo get_class(User::where('id', 1));
 // → 'Illuminate\Database\Eloquent\Builder'
 ```
 
@@ -926,7 +927,7 @@ Builder 2つを合わせると同等以上ありました。
 ```php
 <?php
 
-User::where('id', $id)      // これはEloquent\Builder
+User::where('id', 1)        // これはEloquent\Builder
     ->select('id', 'email') // これはQuery\Builderにしかないはず？
     ->get();                // これはEloquent\Builderのはず XXX
 ```
@@ -2289,8 +2290,8 @@ TODO: ここおいしいところなので、もっとじっくり！
 
 $user = User::find(1);
 
-// User::where('id', $id)と同じように動く
-$user->where('id', $id);
+// User::where('id', 1)と同じように動く
+$user->where('id', 1);
 ```
 
 <!--
