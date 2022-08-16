@@ -2334,12 +2334,25 @@ class User extends Authenticatable
 
 ---
 
-# TODO
+# 行の操作
+
+```php
+<?php
+
+$user = User::find(1);
+echo $user->name;
+
+foreach ($user->posts as $post) {
+    // ...
+}
+
+$user->update([...]);
+```
 
 <!--
 
 行からは行自体の操作や、関連するほかのテーブル、
-つまりモデルの行の操作を行うこともできます。
+つまり別のモデルの行の操作を行うこともできます。
 
 前者はupdate, delete, 後者はリレーション。
 前者はEloquent\Model本体に、後者はHasRelationships経由で、
