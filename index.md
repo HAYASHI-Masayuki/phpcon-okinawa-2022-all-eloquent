@@ -137,7 +137,6 @@ createの例は該当しそうです。
 
 $user = User::firstOrCreate([
     'email'             => 'tarou@example.com',
-    'email_verified_at' => null,
 ], [
     'name'              => 'tarou',
     'password'          => bcrypt('...'),
@@ -147,9 +146,7 @@ $user = User::firstOrCreate([
 
 <!--
 
-さて、firstOrCreateの第1引数で使う場合は？　第2引数で使う場合は？
-email_verified_atをこういう風に使うことはないと思いますが、
-このようなパターン自体はありうるのではないでしょうか。
+firstOrCreateの第2引数で使う場合はどうでしょう？
 
 -->
 
