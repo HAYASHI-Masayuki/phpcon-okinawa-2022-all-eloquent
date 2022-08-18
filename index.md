@@ -2155,40 +2155,144 @@ abstract class Model
 
 <!--
 
-(4章: 43分～???)(10分？)
+(4-1章: 43分～???)(10分？)
 
 HasAttributes, HasRelationshipsと、Eloquent\Modelから使われている
-大きなトレイトを2つ見てきました。
-
-残りはどれも小さなもので、理解も簡単です。HasTimestampsは、
-created_at, updated_atあたりの関係ですね。
-
-HasGlobalScopesも名前通り、グローバルスコープ関係です。
-グローバルスコープは、モデル単位ですべてのクエリに
-制約をかけるといった効果範囲の広い機能で、
-そのためEloquent\Model, Eloquent\Builderにもあちこちに
-関連コードが出てきますし、その上で単体のトレイトもあります。
-リレーションに近いですね。リレーションよりは小さいですが。
-
-論理削除を実現するSoftDeletesトレイトがこの機能を使って
-実装されてます。それくらい広い範囲に影響する機能なので、
-ちょっと危険で、個人的にはあまり使いたくない機能ですが……。
-
-HasEventsは、モデルの作成・更新・削除などの各タイミングで
-フックを行うためのものです。
-
-TODO: この辺、ただのサンプルコードでもいいから、もうちょっとスライドなんとか！
+大きなトレイトを2つ見てきました。残りのトレイトも見てみましょう。
+残りはいずれも小さなもので、理解も簡単です。
 
 -->
 
 ---
+
+# HasEvents
 
 ```php
 <?php
 
 namespace App\Models;
 
-// これはEloquent\Modelを継承したクラス
+use App\Events\UserCreated;
+use App\Events\UserRetrieved;
+use Illuminate\Foundation\Auth\User as Authenticatable;
+
+class User extends Authenticatable
+{
+    protected $dispatchesEvents = [
+        'created' => UserCreated::class,
+        'retrieved' => UserRetrieved::class,
+    ];
+}
+```
+
+<!--
+
+HasEventsは、イベント機能を実装するトレイトです。
+モデルのライフサイクルのいろいろなタイミングにフックできるようにします。
+
+-->
+
+---
+
+# HasGlobalScopes
+
+```php
+<?php
+
+namespace App\Models;
+
+use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Foundation\Auth\User as Authenticatable;
+
+class User extends Authenticatable
+{
+    protected static function booted()
+    {
+        static::addGlobalScope('available', function (Builder $builder) {
+            $builder->where('is_available', 1);
+        });
+    }
+}
+```
+
+<!--
+
+グローバルスコープは、
+モデル単位ですべてのクエリに制約をかける機能です。
+
+影響範囲が広いため、関連する実装はあちこちに散らばっています。
+Eloquent\Model, Eloquent\Builder, そして当然このトレイトです。
+
+SoftDeletesはこの機能を使って実現されています。
+
+-->
+
+---
+
+# HasTimestamps
+
+```tinker
+>>> $user = User::create([ 'name' => 'tarou', 'email' => 'tarou@example.com', 'password' => bcrypt('password')]);
+=> App\Models\User {#4530
+     name: "tarou",
+     email: "tarou@example.com",
+     #password: "$2y$10$dP4QYy/dpXW.iG4ZhuCuMeCm987b9xtXhMFpHceV2eBf8t/yQcTtu",
+     updated_at: "2022-08-18 08:49:29",
+     created_at: "2022-08-18 08:49:29",
+     id: 1,
+   }
+```
+
+<!--
+
+タイムスタンプは、デフォルトではcreated_at, updated_atという名前のカラムに、
+自動で作成日時・更新日時を設定する機能です。
+
+-->
+
+---
+
+# HidesAttributes
+
+```php
+<?php
+
+namespace App\Models;
+
+use Illuminate\Foundation\Auth\User as Authenticatable;
+
+class User extends Authenticatable
+{
+    protected $hidden = [
+        'password',
+        'remember_token',
+    ];
+}
+```
+
+<!--
+
+HidesAttributesは、行をシリアライズする際に、見せるもの、隠すものを
+指定する機能です。
+
+LaravelでJSONを返すのってとても簡単で、いちばん簡単なのはコントローラの
+戻り値にモデルを指定するだけです。
+
+このとき、素直にすべてのアトリビュートを出力してしまっては危険です。
+そのような場合に、$visible, $hiddenで出力していいもの、駄目なものを
+指定できます。
+
+-->
+
+---
+
+# GuardsAttributes
+
+```php
+<?php
+
+namespace App\Models;
+
 use Illuminate\Foundation\Auth\User as Authenticatable;
 
 class User extends Authenticatable
@@ -2199,37 +2303,26 @@ class User extends Authenticatable
         'password',
     ];
 
-    protected $hidden = [
-        'password',
-        'remember_token',
-    ];
-
     // ...
 }
 ```
 
 <!--
 
-HidesAttributesとGuardAttributesは入出力のセキュリティ機能です。
-HidesAttributesは$visible, $hiddenという2つのプロパティを持ち、
-これらの設定によって、各種シリアライズ時に出力するかしないかを
-決めます。
+GuardsAttributesはHidesAttributesの逆、
+HidesAttributesが出力するデータの保護だったのに対し、
+GuardsAttributesは入力するデータの保護のためのものです。
+$fillable, $guardedプロパティで指定します。
 
-この例では、パスワード、まあハッシュですが、とはいえどこかに
-出力するような使い方をするものではないわけです。
-そういう場合にこうしておくと、安全なわけです。
+具体的には、fillやfillを使うメソッドでの一括代入を可能にする
+アトリビュートを制限するものです。
+バリデーションもせず$request->allでそのまま突っ込むような場合ですね。
 
-GuardAttributesはその逆に近いもので、
-おなじみの$fillable, $guarded絡みですね。
-これは入力を直接保存するような場合のガード用です。
-つまり、$request->all()したものをcreateにそのまま突っ込む、
-みたいな場合用のセーフティです。
+ただこちら、有効性は非常に限定されているのであまり意味はないです。
 
-ただ、入力内容をバリデーションもせず保存する場合に、
-カラム単位で保存の可否を制限できるだけで、
-本質的な安全性にはまったくつながりません。
-結局チェックなしの入力が危険なことには変わらないのです。
-ですので私は使いませんね。
+ということで、残りのトレイトの説明でした。
+HasAttributesやHasRelationshipsと違い、Eloquentの全体像に影響のある
+感じではないですね。
 
 -->
 
@@ -2259,6 +2352,7 @@ Eloquent\Model本体の機能も、ざっとですが見ていきましょう。
 ページネーション、オブジェクトとしての機能、
 インターフェイスを実装するために必要なメソッド、……。
 
+トレイトにもあった機能の関係だったり、それ以外だった。
 それぞれ必要な機能ではあるのですが、
 Eloquentの全体像を知るために重要かというと。
 
@@ -2337,7 +2431,28 @@ createは、update, deleteとは違い行に対する処理ではないからで
 SQLでINSERTするとき、テーブル名は指定しますが、
 WHERE句で行を指定するわけではありませんよね。
 
-さて、この辺でもう一つ見えてこないでしょうか？
+-->
+
+---
+
+<!--
+
+updateやdeleteのように、行を対象とした操作であれば、クエリ操作でも
+Eloquent\Modelに実装されることがあるということのようです。
+
+それを考えると、Eloquent\Builderがクエリ操作、Eloquent\Modelが行の操作、
+という考え方は、なにか足りない気がします。
+
+むしろ、モデルをクラスとして扱うときにはテーブルを表現していて、
+インスタンスとして扱うときには行を表現している、
+と考える方が適切ではないでしょうか。
+
+私はLaravelを使い始めた当初、Eloquent\Modelを継承したクラスが、
+テーブルの抽象のようでもあり、行の抽象のようでもある、ということに
+しばらく混乱していました。
+
+しかしあるとき、クラスとして扱うときはテーブルで、
+インスタンスとして扱うときは行だ、と気付き、とてもしっくりきました。
 
 -->
 
@@ -2400,8 +2515,6 @@ class User extends Authenticatable
 プロパティや定数、あるいはリレーションを定義するとき、
 この場合には、テーブルを表現しています。
 
-TODO: この辺、スライドぱぱっと飛ばしてもわからんしょ。文章のスライドに変える。
-
 -->
 
 ---
@@ -2423,11 +2536,9 @@ $user->update([...]);
 
 <!--
 
-TODO: ここおいしいところなので、もっとじっくり！
-
 一方、インスタンスとして生成された場合には、今度は行を表現しています。
-気付いてしまえば簡単でわかりやすいことですが、
-私は結構長い間気付きませんでした。
+一度そう考えると、ほかの考え方はできないくらいしっくりくるんですが、
+私はこの考え方に結構長い間気付きませんでした。
 
 -->
 
@@ -2474,6 +2585,8 @@ $user->where('id', 1);
   - クラスはテーブルを、インスタンスは行を表現
 
 <!--
+
+(4-2章)
 
 TODO: 全体のまとめ、なのがわからない。
 
