@@ -1648,23 +1648,24 @@ HasAttributesに次ぐ規模ではあるんですが、
 じゃあ、また委譲とかあったりするのか、と思われるかもしれませんが、
 今回はちょっと違います。
 
-
 -->
 
 ---
+
+# リレーションの基本的な使い方
 
 ```php
 <?php
 
 namespace App\Models;
 
-use Illuminate\Database\Eloquent\Model;
+use Illuminate\Foundation\Auth\User as Authenticatable;
 
-class Post extends Model
+class User extends Authenticatable
 {
-    public function user()
+    public function posts()
     {
-        return $this->belongsTo(User::class);
+        return $this->hasMany(Post::class);
     }
 }
 ```
@@ -1678,6 +1679,8 @@ class Post extends Model
 -->
 
 ---
+
+# hasOne, hasManyのようなメソッドがしていること
 
 ```php
 <?php
@@ -1707,9 +1710,10 @@ trait HasRelationships
 
 このhasOneやbelongsToのようなメソッド、これらがHasRelationshipsに
 実装されているわけですが、そこでなにをしているのかというと、
-それぞれメソッドごとに個別の、
-Illuminate\Database\Eloquent\Relations\Relationを継承しているクラスの
-インスタンスが生成されているんです。
+それぞれメソッドごとに個別のクラスのインスタンスを生成しています。
+
+そして、これらのクラスが、共通して
+Illuminate\Database\Eloquent\Relations\Relationを継承しています。
 
 -->
 
@@ -1717,25 +1721,26 @@ Illuminate\Database\Eloquent\Relations\Relationを継承しているクラスの
 
 # リレーションに関係するクラス
 
-- `BelongsTo`
-- `BelongsToMany`
-- `HasMany`
-- `HasManyThrough`
-- `HasOne`
-- `HasOneThrough`
-- `MorphMany`
-- `MorphOne`
-- `MorphTo`
-- `MorphToMany`
+- すべてEloquent\Relations\Relationを直接・間接に継承している
+  - `BelongsTo`
+  - `BelongsToMany`
+  - `HasMany`
+  - `HasManyThrough`
+  - `HasOne`
+  - `HasOneThrough`
+  - `MorphMany`
+  - `MorphOne`
+  - `MorphTo`
+  - `MorphToMany`
 
 <!--
 
 ということで、ここでいきなり10クラスほど追加です。
+リレーションに関わる機能は、
 HasRelationshipsと、そこで生成されるこの辺のクラス、
-さらにEloquent\ModelにもEloquent\Builderにも、リレーションに関わる
-機能はあちこちに実装されています。
+さらにEloquent\ModelにもEloquent\Builderにも、実装されています。
 
-さて、このクラス、一つずつ見ていったらきりがないので、
+さて、この10クラス、一つずつ見ていったらきりがないので、
 まとめて把握しましょう。
 
 -->
@@ -1757,6 +1762,8 @@ HasRelationshipsと、そこで生成されるこの辺のクラス、
 
 # そもそもリレーションとは: パターン1
 
+親テーブルのキーの値を、関連するテーブルが持つ
+
 - users
   - **id**
   - ...
@@ -1770,9 +1777,7 @@ HasRelationshipsと、そこで生成されるこの辺のクラス、
 具体的な実装としては、ちょっと分け方が難しいですが、
 今回は3パターンあるとしましょう。
 
-TODO: 「こちら」やめよう。
-
-1つは、こちらのテーブルのあるキーの値を、
+1つは、親テーブルのあるキーの値を、
 関連するテーブルのあるカラムが持っている、というパターンです。
 
 Eloquentで言うと、hasOne, hasManyのパターンです。
@@ -1782,6 +1787,8 @@ Eloquentで言うと、hasOne, hasManyのパターンです。
 ---
 
 # そもそもリレーションとは: パターン2
+
+親テーブルが、関連するテーブルのキーの値を持つ
 
 - posts
   - id
@@ -1794,7 +1801,7 @@ Eloquentで言うと、hasOne, hasManyのパターンです。
 <!--
 
 2つ目は、1つ目のパターンの逆の視点です。
-こちらのテーブルが、関連するテーブルのあるキーの値を持っている。
+親テーブルが、関連するテーブルのあるキーの値を持っている。
 
 Eloquentで言う、belongsToです。
 
@@ -1802,13 +1809,15 @@ Eloquentで言う、belongsToです。
 belongsToに対応するものがない、と思ったかもしれません。
 belongsToManyはありますが、あれは多対多ですからね。
 
-まあ当然で、こちらの視点からは、関連する行は1つになるからです。
+まあ当然で、親の視点からは、関連する行は1つになるからです。
 
 -->
 
 ---
 
 # そもそもリレーションとは: パターン3
+
+中間テーブルが、親と関連するテーブルの両方のキーを持つ
 
 - users
   - **id**
@@ -1823,7 +1832,7 @@ belongsToManyはありますが、あれは多対多ですからね。
 <!--
 
 3つ目です。中間テーブルを介した多対多ですね。
-こちらのテーブルと、関連するテーブルの両方のキーを、
+親テーブルと、関連するテーブルの両方のキーを、
 中間テーブルが持っているという形です。
 
 EloquentではbelongsToManyが該当します。
@@ -1831,6 +1840,8 @@ EloquentではbelongsToManyが該当します。
 -->
 
 ---
+
+# リレーションのパターンと対応するクラス
 
 - `BelongsTo`
 - `BelongsToMany`
@@ -1863,6 +1874,8 @@ HasOne, HasManyが1つ目、BelongsToが2つ目、BelongsToManyが3つ目。
 -->
 
 ---
+
+# それ以外のクラス
 
 - `BelongsTo`
 - `BelongsToMany`
@@ -1900,6 +1913,8 @@ li:nth-child(10) code {
 
 ---
 
+# HasOneThrough, HasManyThrough
+
 ```php
 <?php
 
@@ -1925,12 +1940,14 @@ HasOneThrough, HasManyThroughはそれぞれ、
 たとえばUserがPostを投稿し、そのPostにCommentがつくような
 リレーションで、Userから直接commentsを取得できるような感じです。
 
-Morph系はポリモーフィック関連です。
+またMorph系はポリモーフィック関連です。
 SQLアンチパターンにあるやつですね。
 
 -->
 
 ---
+
+### Eloquent\Relations\Relationからの継承のツリー
 
 - `Eloquent\Relations\Relation` *
   - `HasOneOrMany` *
@@ -1948,17 +1965,17 @@ SQLアンチパターンにあるやつですね。
 
 <!--
 
-さて、
-これらのクラスの継承のツリーを書いてみると、面白いことがわかります。
-その前に右に*がついているのは、これは抽象クラスですね。
+さて、これらのクラスの継承のツリーを書いてみます。
+なお右に*がついているのは、これは抽象クラスですね。
 
-このツリー構造を横目に、コードをざっと見てみます。
-
-TODO: ???
+このツリー構造を抑えた上で、コードを見ていくと
+面白いことがわかります。
 
 -->
 
 ---
+
+### HasOne, HasManyは大差ない
 
 - `Eloquent\Relations\Relation` *
   - <code class="highlight">HasOneOrMany</code> *
@@ -1987,6 +2004,8 @@ HasOneにしたりHasManyにできますから。
 
 ---
 
+### ポリモーフィック関連のクラスは、元となるクラスを少し拡張しただけ
+
 - `Eloquent\Relations\Relation` *
   - `HasOneOrMany` *
     - `HasOne`
@@ -2014,6 +2033,8 @@ HasOneにしたりHasManyにできますから。
 -->
 
 ---
+
+### HasOneOrManyが個別に存在するのに、HasOneOrManyThrough相当はない
 
 - `Eloquent\Relations\Relation` *
   - <code class="highlight">HasOneOrMany</code> *
@@ -2046,6 +2067,8 @@ Eloquent\Modelを継承しているんですよね。
 
 ---
 
+### Eloquent\Relations\RelationはEloquent\Builderと同等
+
 - <code class="highlight">Eloquent\Relations\Relation</code> *
   - `HasOneOrMany` *
     - `HasOne`
@@ -2066,14 +2089,16 @@ Eloquent\Modelを継承しているんですよね。
 リレーション関係の各クラスの基底クラスになっているこちらですが、
 実はこれ、Eloquent\Builderに委譲しているクラスです。
 
-BuilderContractというインターフェイスも実装していて、Eloquent\Builder
-と等価と考えてよいものです。
+リレーションクラスでwhereとかが使えるのは、そのためです。
 
-Eloquent\Relations\Relationは、元となる行に関連する制約のついた
+また、Illuminate\Contracts\Database\Eloquent\Builderという
+インターフェイスが存在するのですが、
+これを実装しているのって、Eloquent\Builderと、
+Eloquent\Relations\Relationだけなんですよね。
+この2つのクラスは、兄弟みたいな関係と考えてよさそうです。
 
-TODO: 元となる？
-
-Eloquent\Builderと考えるとわかりやすいです。
+Eloquent\Relations\Relationは、元となるリレーションメソッドに
+関連する制約のついたEloquent\Builderと考えるとわかりやすいです。
 
 -->
 
