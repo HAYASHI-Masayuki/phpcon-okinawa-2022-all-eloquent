@@ -993,26 +993,18 @@ SQLクエリを組み立てて、実行するというあたりがEloquentの大
 
 # 取得したインスタンスの型
 
-```tinker
->>> get_class(User::find(1))
-=> "App\Models\User"
+```php
+<?php
 
->>> get_parent_class(User::find(1))
-=> "Illuminate\Foundation\Auth\User"
-
->>> get_parent_class(get_parent_class(User::find(1)))
-=> "Illuminate\Database\Eloquent\Model"
+echo is_subclass_of(User::find(1), Illuminate\Database\Eloquent\Model::class);
+// →true
 ```
 
 <!--
 
-TODO: instanceofとか使ってもっとシンプルに！　トークも！
-
-ということで、取得したインスタンスの方を見ていきます。
-まず型を見てみましょう。tinkerであれこれ実行してみます。
-
-これは当然、Eloquent\Modelを継承したクラスのインスタンスです。
-デフォルトのUserクラスは、ちょっと間に一つ挟んでるのですが。
+ということで、取得したインスタンスの、型をまず見てみます。
+Eloquent\Modelを継承したクラスのインスタンスだということが
+わかります。当然ですね。
 
 -->
 
@@ -1032,7 +1024,7 @@ echo $user->name; // 'jirou'
 <!--
 
 データベースのカラムはEloquentではアトリビュートとして扱います。
-実装的には、
+これはインスタンスのプロパティとしてアクセスでき、実装的には、
 マジックメソッド__getで取得したり、同__setで設定したりします。
 
 -->
@@ -1066,6 +1058,40 @@ abstract class Model
 
 __get, __setの中身はEloquent\Modelが使用しているHasAttributes
 トレイトのgetAttribute, setAttributeです。
+
+-->
+
+---
+
+# Eloquent\Modelは多数のトレイトを使用している
+
+```php
+<?php
+
+namespace Illuminate\Database\Eloquent;
+
+abstract class Model
+{
+    use Concerns\HasAttributes,    // 102 (メソッド数)
+        Concerns\HasEvents,        //  26
+        Concerns\HasGlobalScopes,  //   4
+        Concerns\HasRelationships, //  45
+        Concerns\HasTimestamps,    //  11
+        Concerns\HidesAttributes,  //   8
+        Concerns\GuardsAttributes, //  15
+        ForwardsCalls;             // これはユーティリティなのでノーカン
+
+    // ...
+}
+```
+
+<!--
+
+ちなみにこんな感じで、
+Eloquent\Modelは多数のトレイトを使用しています。
+
+それぞれのトレイトのメソッド数はコメントにある感じで、大小様々。
+HasAttributesは、トレイトの中ではいちばん多いです。
 
 -->
 
@@ -1427,7 +1453,7 @@ $changesがある、という感じです。
 
 - アトリビュートが中心
 - アトリビュートを取り囲むようにアクセサ・ミューテタ、キャスト
-- アトリビュートのライフサイクルとして、$original, $changes
+- アトリビュートのライフサイクルとして、`$original` `$changes`
 
 <!--
 
