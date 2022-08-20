@@ -398,6 +398,7 @@ tinkerで、リフレクションを使って、
 
 <style scoped>
 h1, p {
+  font-size: 350px;
   text-align: center;
 }
 </style>
@@ -1160,7 +1161,7 @@ Query\BuilderにしかないメソッドをEloquent\Builderから実行すると
 
 # ここまでのお話
 
-- Eloquent
+- Eloquent全体
   - SQLクエリを組み立てて実行する部分
   * **SQLクエリを実行して取得した結果を使う部分？**
 
@@ -1193,6 +1194,8 @@ SQLクエリを組み立てて、実行するというあたりがEloquentの大
 ```
 
 <!--
+
+TODO: instanceofとか使ってもっとシンプルに！　トークも！
 
 ということで、取得したインスタンスの方を見ていきます。
 まず型を見てみましょう。tinkerであれこれ実行してみます。
