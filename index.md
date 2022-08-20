@@ -1101,121 +1101,49 @@ HasAttributesは、トレイトの中ではいちばん多いです。
 
 - 苦労した理由
   - 使い方ベースではなく、コードリーディングで調べようとした
-* そもそもなぜHasAttributesを選んだか
-  - 比較的大きい個所だから
-  * まとまりのないEloquent\Modelよりはマシそうだったから
 
 <!--
 
 実はこの辺を調べたとき、最初とても苦労しました。というのも、
-使い方ベースでなく、コードリーディング中心で調べてしまったんですね。
-
-(めくる)
-HasAttributesが大きな要素だということはわかっていました。
-メソッド数は100を超えて、Eloquent\Modelから使われている
-トレイトの中では最大です。Eloquent\Model本体でも130ほどなので。
-
-(めくる)
-Eloquent\Model本体には、分類しづらい雑多なメソッドが並んでいます。
-実際簡単に分類できるものは、トレイトに移されて、
-その残りが本体にある、という感じでしょう。
-
-それと比べれば、HasAttributesはメソッドが100を超えるとはいっても、
-ある程度整理されているはずなので、
-もっと簡単に把握できるのではないかと思っていました。
-が、これが難しかった。
+使い方を見ずに、単純にソースコードを追ってしまったためです。
+Eloquent\Builderを調べたときのように、使い方ベースで見ていれば、
+よかったのですが。
 
 -->
 
 ---
 
-# HasAttributesはメソッドだけ見てもわからない
+# HasAttributesの調査に苦労した話
 
-* 同じような動詞で始まるメソッドが多い
-  - get, set, is, has, as, from
-* 名詞もまた、同じようなものが多い
-  - attribute, cast, mutator...
-* 引数や戻り値を見ても、
-  - 引数は、動詞ごとに似通っている
-  - 戻り値はほぼプリミティブ型
+```php
+<?php
 
-<!--
+namespace Illuminate\Database\Eloquent;
 
-なぜか。どの辺のメソッドが、HasAttributesの中心になるかが、
-ぱっとはわからなかったからです。
+abstract class Model
+{
+    use Concerns\HasAttributes,
 
-(めくる)
-get, set, is, has, あとas, fromみたいな、
-同じような動詞で始まるメソッドばかりだったり。
+    public function __get($key)
+    {
+        return $this->getAttribute($key);
+    }
 
-(めくる)
-これらの対象となる名詞もまた、同じようなものがたくさん。
-attribute, cast, mutator, ...
-
-(めくる)
-引数や戻り値で見てもなかなか。
-これらはそもそも、動詞次第で似たり寄ったり。
-isやhasはboolean返って来るに決まってますからね。
-
--->
-
----
-
-# 本当に重要だったのは
-
-- 名詞で使われている、attribute, cast, mutatorあたり
-* あるいは、**Eloquent\Model本体から使われているメソッド**
-
-<!--
-
-理解した今から考えれば、名詞で使われている
-attribute, cast, mutatorが重要、
-そこから考えていけばよかった、とわかるんですが。
-
-(めくる)
-あるいは、こちらの方がいいかもしれません。
-Eloquent\Model本体から使われているHasAttributesのメソッドはなにか、
-という視点です。
-
--->
-
----
-
-# Eloquent\Model本体から使われているメソッド
-
-`getAttribute` `isDirty` `mergeAttributesFromCachedCasts` `setAttribute` `setRawAttributes` `syncChanges` `syncOriginal`
-
-<!--
-
-使われているメソッド全体はもうちょっと多いんですが、その中でも
-複数回使われているものはこんな感じです。かなり絞られました。
-
--->
-
----
-
-# Eloquent\Model本体から使われているメソッド
-
-`getAttribute` `isDirty` `mergeAttributesFromCachedCasts` `setAttribute` `setRawAttributes` `syncChanges` `syncOriginal`
-
-<style scoped>
-code:nth-child(1),
-code:nth-child(4),
-code:nth-child(6),
-code:nth-child(7) {
-  color: #f00;
-  text-decoration: underline;
+    public function __set($key, $value)
+    {
+        $this->setAttribute($key, $value);
+    }
 }
-</style>
+```
 
 <!--
 
-まあ割とどれも重要なんですが、具体的に使われている個所を見て、
-特に重要に見えるのはこの辺ですね。
+Eloquent\BuilderがEloquent\Modelからマジックメソッド
+__callStatic, __call経由で使われていたように、
+HasAttributesの重要なメソッドは、マジックメソッド
+__get, __setから使われています。
 
-実際、getAttribute, setAttributeは
-マジックメソッドから使用されているわけです。ちょっと考えれば、
-インスタンスの使用時に頻繁に使われている個所だとわかります。
+getAttribute, setAttributeですね。
 
 -->
 
@@ -1232,21 +1160,21 @@ trait HasAttributes
 {
     protected function transformModelValue($key, $value)
     {
+        // アクセサ(ミューテタ)があるなら、それを
         if ($this->hasGetMutator($key)) {
             return $this->mutateAttribute($key, $value);
         } elseif ($this->hasAttributeGetMutator($key)) {
             return $this->mutateAttributeMarkedAttribute($key, $value);
         }
 
+        // キャストがあるなら、それを
         if ($this->hasCast($key)) {
             return $this->castAttribute($key, $value);
         }
 
-        if ($value !== null
-            && \in_array($key, $this->getDates(), false)) {
-            return $this->asDateTime($value);
-        }
+        // ...
 
+        // なければ、素のアトリビュートの値を返す
         return $value;
     }
 }
@@ -1254,20 +1182,14 @@ trait HasAttributes
 
 <!--
 
-さて、重要な個所が見えてくると、
-ほかのメソッドの立ち位置もはっきりしてきます。
+getAttributeからコード追ってくと、
+transformModelValueというメソッドがあります。
 
-getAttribute, setAttributeの実装をしっかり見ていくと、
-アクセサ・ミューテタ、キャストなどの、
-アトリビュートを変更する処理が、
-アトリビュートの取得・設定をシンプルに
-ラップしている形になっているのがわかります。
+これを見ると、アトリビュートが中心にあって、
+それを必要に応じてキャストやアクセサ・ミューテタで処理する、
+という形が見えてきます。
 
-これはgetAttributeの奥で使われるメソッドですが、
-ミューテタがあったら、キャストがあったら、日付だったら、
-という分岐で、
-それぞれの処理が行われ、いずれでもない場合、値をそのまま返す、
-この場合これはアトリビュートのいずれかですね、という形です。
+setAttributeの方も同じような感じです。
 
 -->
 
@@ -1280,7 +1202,8 @@ getAttribute, setAttributeの実装をしっかり見ていくと、
 
 <!--
 
-アトリビュートは、データベースの行の各カラムです。
+さて、アトリビュートとはそもそもなんでしょうか。
+アトリビュートは、データベースの行の各カラムと対応するものです。
 アトリビュートは取得・設定される際に、
 アクセサ・ミューテタ、キャストなどによって変更されるのです。
 
@@ -1288,11 +1211,7 @@ HasAttributesは、アトリビュート自身だけでなく、
 アクセサ・ミューテタ、キャストも含めた機能が
 まとまっているトレイトでした。
 
-as, fromで始まるメソッドに関しても、やはり関連したものです。
-asはある型に変換する、fromはある型から変換する。
-
-ただこれでHasAttributesのすべてというわけではなく、
-それ以外のものもいくらかあります。
+ただこれでHasAttributesのすべてというわけではありません。
 
 -->
 
@@ -1302,8 +1221,9 @@ asはある型に変換する、fromはある型から変換する。
 
 <!--
 
-HasAttributesのメソッドのうち、名前にattribute, cast, mutatorが
-ついていない、またfrom, asで始まらない、ものがこちらになります。
+HasAttributesのメソッドのうち、アトリビュート、キャスト、
+アクセサ・ミューテタに関係するメソッドを、
+名前で判断して取り除いたものがこちらになります。
 
 -->
 
@@ -1330,11 +1250,13 @@ code:nth-child(33) {
 
 <!--
 
-名前を見ていくと、original, change(s), dirtyという名詞があります。
+残ったメソッドのこれまた名前を見ていくと、
+original, changes, dirtyという名詞があります。
 
-syncOriginalというメソッドが、Modelから直接使われている
-(数)少ないメソッドの中に出てきたのを覚えていますか？
-実はこの辺の機能は、行のライフサイクルに関するものです。
+この辺の機能は、行のライフサイクルに関するものです。
+
+アトリビュートとキャストなど周辺の変換機能とは別に、
+もう一つ、HasAttributesが実装している機能がこれです。
 
 -->
 
